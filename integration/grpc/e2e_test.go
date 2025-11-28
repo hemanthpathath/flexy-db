@@ -99,7 +99,8 @@ func setupTestServer(t *testing.T) (pb.TenantServiceClient, pb.UserServiceClient
 	time.Sleep(100 * time.Millisecond)
 
 	// Create clients
-	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// Use grpc.Dial instead of grpc.NewClient (not available in this gRPC version)
+	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 
 	tenantClient := pb.NewTenantServiceClient(conn)

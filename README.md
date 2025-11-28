@@ -40,6 +40,9 @@ flex-db/
 │   └── dbaas_grpc.pb.go    # Generated gRPC code
 ├── cmd/dbaas-server/       # Main server entry point
 │   └── main.go
+├── docs/                   # Documentation and guides
+│   ├── SETUP.md            # Local development setup guide
+│   └── INSOMNIA_GUIDE.md   # Insomnia gRPC testing guide
 ├── internal/
 │   ├── db/                 # Database connection and migrations
 │   │   ├── db.go
@@ -47,6 +50,10 @@ flex-db/
 │   ├── repository/         # Data access layer
 │   ├── service/            # Business logic layer
 │   └── grpc/               # gRPC handlers
+├── scripts/                # Utility scripts
+│   ├── start.sh            # Quick start script
+│   ├── load-env.sh         # Environment variable loader
+│   └── regenerate-proto.sh # Regenerate protobuf files
 └── README.md
 ```
 
@@ -58,50 +65,31 @@ flex-db/
 
 ## Quick Start
 
-### 1. Set up PostgreSQL
-
-Create a database for the service:
-
 ```bash
-# Using psql
-createdb dbaas
+# 1. Start PostgreSQL
+docker-compose up -d
 
-# Or using Docker
-docker run -d \
-  --name dbaas-postgres \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=dbaas \
-  -p 5432:5432 \
-  postgres:14
+# 2. Set up environment variables
+cp .env.example .env.local
+
+# 3. Run the server (handles everything automatically)
+./scripts/start.sh
 ```
 
-### 2. Configure Environment Variables
+**📚 For detailed setup instructions, see [docs/SETUP.md](docs/SETUP.md)**
 
-```bash
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_USER=postgres
-export DB_PASSWORD=postgres
-export DB_NAME=dbaas
-export DB_SSL_MODE=disable
-export GRPC_PORT=50051
-```
+**🧪 For testing with Insomnia, see [docs/INSOMNIA_GUIDE.md](docs/INSOMNIA_GUIDE.md)**
 
-### 3. Run the Server
+## Documentation
 
-```bash
-# Build and run
-go build -o dbaas-server ./cmd/dbaas-server
-./dbaas-server
-
-# Or run directly
-go run ./cmd/dbaas-server
-```
-
-The server will automatically apply database migrations on startup.
+- **[Setup Guide](docs/SETUP.md)** - Complete local development setup instructions
+- **[Insomnia Testing Guide](docs/INSOMNIA_GUIDE.md)** - Step-by-step guide for testing APIs with Insomnia
 
 ## API Usage
+
+### Using Insomnia (Recommended)
+
+See the [Insomnia Testing Guide](docs/INSOMNIA_GUIDE.md) for detailed instructions on how to set up and test gRPC requests.
 
 ### Using grpcurl
 
@@ -249,11 +237,12 @@ Migrations are embedded in the binary and run automatically on server startup. T
 If you modify the protobuf definitions:
 
 ```bash
-# Install protoc plugins
+# Use the regenerate script (recommended)
+./scripts/regenerate-proto.sh
+
+# Or manually
 go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-
-# Generate code
 protoc --go_out=. --go_opt=paths=source_relative \
        --go-grpc_out=. --go-grpc_opt=paths=source_relative \
        api/proto/dbaas.proto

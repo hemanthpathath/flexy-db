@@ -18,6 +18,14 @@ Step-by-step instructions for testing the gRPC APIs using Insomnia:
 - Testing workflow
 - Troubleshooting tips
 
+### 🔌 [Client Integration Guide](CLIENT_INTEGRATION.md)
+Complete guide for clients and other services to integrate with flex-db:
+- Proto file sharing
+- gRPC reflection usage
+- Generating client code for different languages
+- Example client implementations
+- Security best practices
+
 ## Quick Links
 
 - **Main README**: [../README.md](../README.md)

@@ -1,4 +1,4 @@
-# flexy-db
+# flex-db
 
 A **Database-as-a-Service (DBaaS)** built with Go, gRPC, and PostgreSQL. This service provides a flexible, multi-tenant data storage solution with five core primitives: Tenant, User, NodeType, Node, and Relationship.
 

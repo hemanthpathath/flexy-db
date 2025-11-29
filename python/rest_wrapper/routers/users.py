@@ -3,7 +3,6 @@ User REST API router.
 """
 
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional
 
 from rest_wrapper.client import get_client, JSONRPCError
 from rest_wrapper.models import (

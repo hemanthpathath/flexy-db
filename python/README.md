@@ -166,6 +166,65 @@ curl http://localhost:5000/health
 docker logs flex-db-python
 ```
 
+### CI/CD: GitHub Actions Workflow
+
+This repository includes a GitHub Actions workflow that automatically builds and pushes the Docker image to GitHub Container Registry (GHCR).
+
+#### Workflow Triggers
+
+The workflow is triggered on:
+- **Push to main branch**: Builds and pushes the image to GHCR
+- **Pull requests to main**: Builds the image (without pushing) to validate changes
+
+The workflow only runs when changes are made to:
+- Files in the `python/` directory
+- The workflow file itself (`.github/workflows/python-docker-build.yml`)
+
+#### Image Tags
+
+The workflow automatically tags images with:
+- **Commit SHA**: `ghcr.io/<owner>/<repo>/flex-db:<sha>` - Unique tag for each commit
+- **Branch name**: `ghcr.io/<owner>/<repo>/flex-db:main` - For push events
+- **PR number**: `ghcr.io/<owner>/<repo>/flex-db:pr-<number>` - For pull request events
+
+#### Pulling the Image from GHCR
+
+To pull the image locally:
+
+```bash
+# Authenticate to GHCR (required for private repositories)
+echo $GITHUB_TOKEN | docker login ghcr.io -u <username> --password-stdin
+
+# Pull the latest image from main branch
+docker pull ghcr.io/<owner>/<repo>/flex-db:main
+
+# Pull a specific commit version
+docker pull ghcr.io/<owner>/<repo>/flex-db:<commit-sha>
+```
+
+Replace `<owner>/<repo>` with the actual repository path (e.g., `hemanthpathath/flex-db`).
+
+#### Running the GHCR Image
+
+```bash
+# Run the container from GHCR
+docker run -d \
+  --name flex-db-python \
+  -p 5000:5000 \
+  -e DB_HOST=host.docker.internal \
+  -e DB_PORT=5432 \
+  -e DB_USER=postgres \
+  -e DB_PASSWORD=postgres \
+  -e DB_NAME=dbaas \
+  ghcr.io/<owner>/<repo>/flex-db:main
+```
+
+#### Workflow Features
+
+- **Docker Buildx**: Efficient multi-platform builds
+- **Layer Caching**: GitHub Actions cache for faster builds
+- **Vulnerability Scanning**: Trivy scanner runs on pushed images and uploads results to the GitHub Security tab
+
 ## Manual Setup
 
 ### Step 1: Set Up PostgreSQL

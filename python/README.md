@@ -183,7 +183,7 @@ The workflow only runs when changes are made to:
 #### Image Tags
 
 The workflow automatically tags images with:
-- **Commit SHA**: `ghcr.io/<owner>/<repo>/flex-db:<sha>` - Unique tag for each commit
+- **Commit SHA**: `ghcr.io/<owner>/<repo>/flex-db:sha-<sha>` - Unique tag for each commit (7 character short SHA)
 - **Branch name**: `ghcr.io/<owner>/<repo>/flex-db:main` - For push events
 - **PR number**: `ghcr.io/<owner>/<repo>/flex-db:pr-<number>` - For pull request events
 
@@ -198,8 +198,8 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u <username> --password-stdin
 # Pull the latest image from main branch
 docker pull ghcr.io/<owner>/<repo>/flex-db:main
 
-# Pull a specific commit version
-docker pull ghcr.io/<owner>/<repo>/flex-db:<commit-sha>
+# Pull a specific commit version (use short SHA with sha- prefix)
+docker pull ghcr.io/<owner>/<repo>/flex-db:sha-<short-sha>
 ```
 
 Replace `<owner>/<repo>` with the actual repository path (e.g., `hemanthpathath/flex-db`).

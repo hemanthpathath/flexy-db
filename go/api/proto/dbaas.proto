@@ -1,0 +1,402 @@
+syntax = "proto3";
+
+package dbaas;
+
+option go_package = "github.com/hemanthpathath/flex-db/go/api/proto";
+
+import "google/protobuf/timestamp.proto";
+
+// ============================================================================
+// Common Types
+// ============================================================================
+
+message Pagination {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message PaginationResponse {
+  string next_page_token = 1;
+  int32 total_count = 2;
+}
+
+// ============================================================================
+// Tenant
+// ============================================================================
+
+message Tenant {
+  string id = 1;
+  string slug = 2;
+  string name = 3;
+  string status = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+message CreateTenantRequest {
+  string slug = 1;
+  string name = 2;
+}
+
+message CreateTenantResponse {
+  Tenant tenant = 1;
+}
+
+message GetTenantRequest {
+  string id = 1;
+}
+
+message GetTenantResponse {
+  Tenant tenant = 1;
+}
+
+message UpdateTenantRequest {
+  string id = 1;
+  string slug = 2;
+  string name = 3;
+  string status = 4;
+}
+
+message UpdateTenantResponse {
+  Tenant tenant = 1;
+}
+
+message DeleteTenantRequest {
+  string id = 1;
+}
+
+message DeleteTenantResponse {}
+
+message ListTenantsRequest {
+  Pagination pagination = 1;
+}
+
+message ListTenantsResponse {
+  repeated Tenant tenants = 1;
+  PaginationResponse pagination = 2;
+}
+
+// ============================================================================
+// User
+// ============================================================================
+
+message User {
+  string id = 1;
+  string email = 2;
+  string display_name = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message TenantUser {
+  string tenant_id = 1;
+  string user_id = 2;
+  string role = 3;
+  string status = 4;
+}
+
+message CreateUserRequest {
+  string email = 1;
+  string display_name = 2;
+}
+
+message CreateUserResponse {
+  User user = 1;
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message UpdateUserRequest {
+  string id = 1;
+  string email = 2;
+  string display_name = 3;
+}
+
+message UpdateUserResponse {
+  User user = 1;
+}
+
+message DeleteUserRequest {
+  string id = 1;
+}
+
+message DeleteUserResponse {}
+
+message ListUsersRequest {
+  Pagination pagination = 1;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  PaginationResponse pagination = 2;
+}
+
+message AddUserToTenantRequest {
+  string tenant_id = 1;
+  string user_id = 2;
+  string role = 3;
+}
+
+message AddUserToTenantResponse {
+  TenantUser tenant_user = 1;
+}
+
+message RemoveUserFromTenantRequest {
+  string tenant_id = 1;
+  string user_id = 2;
+}
+
+message RemoveUserFromTenantResponse {}
+
+message ListTenantUsersRequest {
+  string tenant_id = 1;
+  Pagination pagination = 2;
+}
+
+message ListTenantUsersResponse {
+  repeated TenantUser tenant_users = 1;
+  PaginationResponse pagination = 2;
+}
+
+// ============================================================================
+// NodeType
+// ============================================================================
+
+message NodeType {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  string schema = 5; // JSON schema for node data validation
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message CreateNodeTypeRequest {
+  string tenant_id = 1;
+  string name = 2;
+  string description = 3;
+  string schema = 4;
+}
+
+message CreateNodeTypeResponse {
+  NodeType node_type = 1;
+}
+
+message GetNodeTypeRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message GetNodeTypeResponse {
+  NodeType node_type = 1;
+}
+
+message UpdateNodeTypeRequest {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  string schema = 5;
+}
+
+message UpdateNodeTypeResponse {
+  NodeType node_type = 1;
+}
+
+message DeleteNodeTypeRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message DeleteNodeTypeResponse {}
+
+message ListNodeTypesRequest {
+  string tenant_id = 1;
+  Pagination pagination = 2;
+}
+
+message ListNodeTypesResponse {
+  repeated NodeType node_types = 1;
+  PaginationResponse pagination = 2;
+}
+
+// ============================================================================
+// Node
+// ============================================================================
+
+message Node {
+  string id = 1;
+  string tenant_id = 2;
+  string node_type_id = 3;
+  string data = 4; // JSONB data
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+message CreateNodeRequest {
+  string tenant_id = 1;
+  string node_type_id = 2;
+  string data = 3;
+}
+
+message CreateNodeResponse {
+  Node node = 1;
+}
+
+message GetNodeRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message GetNodeResponse {
+  Node node = 1;
+}
+
+message UpdateNodeRequest {
+  string id = 1;
+  string tenant_id = 2;
+  string data = 3;
+}
+
+message UpdateNodeResponse {
+  Node node = 1;
+}
+
+message DeleteNodeRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message DeleteNodeResponse {}
+
+message ListNodesRequest {
+  string tenant_id = 1;
+  string node_type_id = 2; // optional filter
+  Pagination pagination = 3;
+}
+
+message ListNodesResponse {
+  repeated Node nodes = 1;
+  PaginationResponse pagination = 2;
+}
+
+// ============================================================================
+// Relationship
+// ============================================================================
+
+message Relationship {
+  string id = 1;
+  string tenant_id = 2;
+  string source_node_id = 3;
+  string target_node_id = 4;
+  string relationship_type = 5;
+  string data = 6; // JSONB data for relationship attributes
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message CreateRelationshipRequest {
+  string tenant_id = 1;
+  string source_node_id = 2;
+  string target_node_id = 3;
+  string relationship_type = 4;
+  string data = 5;
+}
+
+message CreateRelationshipResponse {
+  Relationship relationship = 1;
+}
+
+message GetRelationshipRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message GetRelationshipResponse {
+  Relationship relationship = 1;
+}
+
+message UpdateRelationshipRequest {
+  string id = 1;
+  string tenant_id = 2;
+  string relationship_type = 3;
+  string data = 4;
+}
+
+message UpdateRelationshipResponse {
+  Relationship relationship = 1;
+}
+
+message DeleteRelationshipRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message DeleteRelationshipResponse {}
+
+message ListRelationshipsRequest {
+  string tenant_id = 1;
+  string source_node_id = 2; // optional filter
+  string target_node_id = 3; // optional filter
+  string relationship_type = 4; // optional filter
+  Pagination pagination = 5;
+}
+
+message ListRelationshipsResponse {
+  repeated Relationship relationships = 1;
+  PaginationResponse pagination = 2;
+}
+
+// ============================================================================
+// Services
+// ============================================================================
+
+service TenantService {
+  rpc CreateTenant(CreateTenantRequest) returns (CreateTenantResponse);
+  rpc GetTenant(GetTenantRequest) returns (GetTenantResponse);
+  rpc UpdateTenant(UpdateTenantRequest) returns (UpdateTenantResponse);
+  rpc DeleteTenant(DeleteTenantRequest) returns (DeleteTenantResponse);
+  rpc ListTenants(ListTenantsRequest) returns (ListTenantsResponse);
+}
+
+service UserService {
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc AddUserToTenant(AddUserToTenantRequest) returns (AddUserToTenantResponse);
+  rpc RemoveUserFromTenant(RemoveUserFromTenantRequest) returns (RemoveUserFromTenantResponse);
+  rpc ListTenantUsers(ListTenantUsersRequest) returns (ListTenantUsersResponse);
+}
+
+service NodeTypeService {
+  rpc CreateNodeType(CreateNodeTypeRequest) returns (CreateNodeTypeResponse);
+  rpc GetNodeType(GetNodeTypeRequest) returns (GetNodeTypeResponse);
+  rpc UpdateNodeType(UpdateNodeTypeRequest) returns (UpdateNodeTypeResponse);
+  rpc DeleteNodeType(DeleteNodeTypeRequest) returns (DeleteNodeTypeResponse);
+  rpc ListNodeTypes(ListNodeTypesRequest) returns (ListNodeTypesResponse);
+}
+
+service NodeService {
+  rpc CreateNode(CreateNodeRequest) returns (CreateNodeResponse);
+  rpc GetNode(GetNodeRequest) returns (GetNodeResponse);
+  rpc UpdateNode(UpdateNodeRequest) returns (UpdateNodeResponse);
+  rpc DeleteNode(DeleteNodeRequest) returns (DeleteNodeResponse);
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
+}
+
+service RelationshipService {
+  rpc CreateRelationship(CreateRelationshipRequest) returns (CreateRelationshipResponse);
+  rpc GetRelationship(GetRelationshipRequest) returns (GetRelationshipResponse);
+  rpc UpdateRelationship(UpdateRelationshipRequest) returns (UpdateRelationshipResponse);
+  rpc DeleteRelationship(DeleteRelationshipRequest) returns (DeleteRelationshipResponse);
+  rpc ListRelationships(ListRelationshipsRequest) returns (ListRelationshipsResponse);
+}

@@ -418,3 +418,30 @@ async def list_relationships(
         })
     except Exception as e:
         return _handle_error(e)
+
+
+# ============================================================================
+# RPC Discovery Methods (OpenRPC Introspection)
+# ============================================================================
+
+@method
+async def rpc_discover() -> Result:
+    """
+    Discover available JSON-RPC methods and their schemas.
+    
+    This method implements OpenRPC introspection, allowing clients to
+    dynamically discover all available methods, their parameters, and
+    return types.
+    
+    Returns:
+        openrpc: OpenRPC specification object containing all available methods
+    
+    Note: This method is registered as "rpc_discover" but the OpenRPC spec
+    shows it as "rpc.discover" (with dot) for standards compliance.
+    """
+    try:
+        from app.jsonrpc.openrpc import generate_openrpc_spec
+        spec = generate_openrpc_spec()
+        return Success({"openrpc": spec})
+    except Exception as e:
+        return _handle_error(e)

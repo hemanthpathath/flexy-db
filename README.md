@@ -7,7 +7,7 @@ A **Database-as-a-Service (DBaaS)** with multiple implementation options. This s
 - **Multi-tenant architecture**: All Nodes and Relationships are scoped to a Tenant
 - **Flexible data model**: Generic NodeTypes and Nodes with JSONB data storage
 - **Graph-like relationships**: Connect Nodes with typed Relationships
-- **Multiple API options**: Choose between gRPC (Go) or JSON-RPC/REST (Python)
+- **Multiple API options**: Choose between gRPC (Go) or JSON-RPC (Python)
 - **PostgreSQL backend**: Robust, production-ready database
 - **Feature parity**: Both implementations provide identical functionality
 
@@ -20,13 +20,13 @@ This project provides two complete implementations that share the same database 
    - Port: 50051 (default)
    - Database: PostgreSQL with pgx driver
 
-2. **Python Backend** (`/python`): Unified FastAPI service with JSON-RPC and REST
-   - Protocols: JSON-RPC 2.0 and REST API
-   - Port: 5000 (default) - both protocols on the same port
+2. **Python Backend** (`/python`): JSON-RPC API service
+   - Protocol: JSON-RPC 2.0
+   - Port: 5000 (default)
    - Framework: FastAPI with uvicorn
    - Database: PostgreSQL with asyncpg driver
-   - Features: Swagger UI, ReDoc, OpenAPI documentation
-   - Architecture: REST endpoints call services directly (no JSON-RPC overhead)
+   - Features: OpenRPC specification, interactive documentation
+   - Architecture: JSON-RPC methods call services directly
 
 Both implementations provide full CRUD operations with pagination support and share the same database schema.
 
@@ -52,33 +52,25 @@ Both implementations provide full CRUD operations with pagination support and sh
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Python Backend (Unified FastAPI Service)
+### Python Backend (JSON-RPC API)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              Unified FastAPI Service (Port 5000)            │
-│  ┌──────────────────────┐  ┌──────────────────────┐         │
-│  │   REST API           │  │   JSON-RPC API       │         │
-│  │   • /tenants         │  │   • /jsonrpc         │         │
-│  │   • /users           │  │                      │         │
-│  │   • /nodes           │  │                      │         │
-│  │   • /relationships   │  │                      │         │
-│  │   • /docs (Swagger)  │  │                      │         │
-│  │   • /redoc           │  │                      │         │
-│  └──────────┬───────--──┘  └──────────┬────────-──┘         │
-│             │                         │                     │
-│             └───────────┬─────────--──┘                     │
-│                         │                                   │
-├─────────────────────────┼──────────────────────────────────-┤
-│                     Service Layer                           │
+│                      JSON-RPC API                           │
 │  (TenantService, UserService, NodeTypeService,              │
 │   NodeService, RelationshipService)                         │
+│  • /jsonrpc - JSON-RPC 2.0 endpoint                        │
+│  • /openrpc.json - OpenRPC specification                    │
+│  • /health - Health check endpoint                         │
+├─────────────────────────────────────────────────────────────┤
+│                     Service Layer                           │
+│  (Business logic, validation)                               │
 ├─────────────────────────────────────────────────────────────┤
 │                   Repository Layer                          │
 │  (PostgreSQL implementations with asyncpg)                  │
 ├─────────────────────────────────────────────────────────────┤
 │                      PostgreSQL                             │
-│  (tenants, users, tenant_users, node_types, nodes,          │
+│  (tenants, users, tenant_users, node_types, nodes,         │
 │   relationships)                                            │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -113,19 +105,20 @@ flex-db/
 │   │   └── regenerate-proto.sh # Regenerate protobuf files
 │   ├── go.mod
 │   └── go.sum
-├── python/                     # Python implementation (JSON-RPC + REST)
+├── python/                     # Python implementation (JSON-RPC)
 │   ├── app/                    # Application code
 │   │   ├── config.py           # Configuration management
 │   │   ├── db/                 # Database connection and migrations
 │   │   ├── repository/         # Data access layer
 │   │   ├── service/            # Business logic layer
-│   │   ├── jsonrpc/            # JSON-RPC handlers
-│   │   └── api/                # REST API (unified with main service)
-│   │       ├── routers/        # REST endpoint routers
-│   │       ├── models.py       # Pydantic request/response models
-│   │       └── errors.py       # Error handling utilities
+│   │   └── jsonrpc/            # JSON-RPC handlers and OpenRPC
+│   │       ├── handlers.py     # JSON-RPC method handlers
+│   │       ├── server.py       # FastAPI router for JSON-RPC
+│   │       └── openrpc.py      # OpenRPC specification generator
+│   ├── docs/                   # Documentation
+│   │   └── JSON_RPC_INTEGRATION.md  # Comprehensive integration guide
 │   ├── scripts/                # Utility scripts
-│   ├── main.py                 # Main entry point (FastAPI - JSON-RPC & REST)
+│   ├── main.py                 # Main entry point (FastAPI - JSON-RPC)
 │   ├── requirements.txt        # Python dependencies
 │   ├── .env.example            # Environment variable template
 │   ├── Dockerfile              # Docker image
@@ -166,7 +159,7 @@ The server will start on `localhost:50051` (gRPC).
 
 **🧪 For testing Go APIs with Insomnia, see [go/docs/INSOMNIA_GUIDE.md](go/docs/INSOMNIA_GUIDE.md)**
 
-### Python Backend (JSON-RPC + REST)
+### Python Backend (JSON-RPC)
 
 ```bash
 # 1. Start PostgreSQL
@@ -175,19 +168,18 @@ docker-compose up -d
 # 2. Set up environment variables
 cd python && cp .env.example .env.local
 
-# 3. Run the unified server (handles everything automatically)
+# 3. Run the server (handles everything automatically)
 ./scripts/start.sh
 # Or: python main.py
 ```
 
-The unified service will start on `localhost:5000` with both JSON-RPC and REST APIs:
+The service will start on `localhost:5000` with JSON-RPC API:
 - **JSON-RPC**: `http://localhost:5000/jsonrpc`
-- **REST API**: `http://localhost:5000/tenants`, `/users`, `/nodes`, etc.
-- **Swagger UI**: `http://localhost:5000/docs`
-- **ReDoc**: `http://localhost:5000/redoc`
+- **OpenRPC Spec**: `http://localhost:5000/openrpc.json`
 - **Health Check**: `http://localhost:5000/health`
 
-**📚 For detailed Python setup instructions, see [python/README.md](python/README.md)**
+**📚 For detailed Python setup instructions, see [python/README.md](python/README.md)**  
+**📚 For JSON-RPC integration guide, see [python/docs/JSON_RPC_INTEGRATION.md](python/docs/JSON_RPC_INTEGRATION.md)**
 
 ## Documentation
 
@@ -311,13 +303,11 @@ Connect to the server:
 evans --host localhost --port 50051 -r repl
 ```
 
-### Python Backend (JSON-RPC + REST)
+### Python Backend (JSON-RPC)
 
-The Python backend provides both JSON-RPC and REST APIs on the same port (5000).
+The Python backend provides a JSON-RPC 2.0 API at `http://localhost:5000/jsonrpc`.
 
 #### JSON-RPC API
-
-The JSON-RPC 2.0 API is available at `http://localhost:5000/jsonrpc`:
 
 ```bash
 # Create a tenant
@@ -329,33 +319,35 @@ curl -X POST http://localhost:5000/jsonrpc \
     "params": {"slug": "acme-corp", "name": "Acme Corporation"},
     "id": 1
   }'
-```
-
-#### REST API
-
-The REST API provides RESTful endpoints that call services directly:
-
-```bash
-# Create a tenant
-curl -X POST http://localhost:5000/tenants \
-  -H "Content-Type: application/json" \
-  -d '{"slug": "acme-corp", "name": "Acme Corporation"}'
 
 # Get a tenant
-curl http://localhost:5000/tenants/{tenant_id}
+curl -X POST http://localhost:5000/jsonrpc \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "get_tenant",
+    "params": {"id": "TENANT_ID"},
+    "id": 2
+  }'
 
 # List tenants
-curl "http://localhost:5000/tenants?page_size=10"
+curl -X POST http://localhost:5000/jsonrpc \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "method": "list_tenants",
+    "params": {"pagination": {"page_size": 10}},
+    "id": 3
+  }'
 ```
 
-#### Interactive API Documentation
+#### OpenRPC Specification
 
-Both JSON-RPC and REST are documented in the unified OpenAPI specification:
-- **Swagger UI**: http://localhost:5000/docs
-- **ReDoc**: http://localhost:5000/redoc
-- **OpenAPI Schema**: http://localhost:5000/openapi.json
+The service provides an OpenRPC specification (similar to OpenAPI for REST):
+- **OpenRPC Spec**: http://localhost:5000/openrpc.json
+- **Integration Guide**: [python/docs/JSON_RPC_INTEGRATION.md](python/docs/JSON_RPC_INTEGRATION.md)
 
-For more examples and the complete API reference, see [python/README.md](python/README.md).
+For complete API reference, client implementations, and examples, see [python/docs/JSON_RPC_INTEGRATION.md](python/docs/JSON_RPC_INTEGRATION.md).
 
 ## Data Model
 
@@ -437,7 +429,7 @@ cd python && python -m pytest
 #### Development Mode
 
 ```bash
-# Unified service with auto-reload (both JSON-RPC and REST)
+# JSON-RPC service with auto-reload
 cd python && RELOAD=true python main.py
 
 # Or using uvicorn directly
@@ -455,15 +447,14 @@ docker-compose up -d
 # Terminal 2: Start Go backend (gRPC on port 50051)
 cd go && ./scripts/start.sh
 
-# Terminal 3: Start Python backend (JSON-RPC + REST on port 5000)
+# Terminal 3: Start Python backend (JSON-RPC on port 5000)
 cd python && ./scripts/start.sh
 ```
 
 This allows you to test and compare both implementations side-by-side:
 - **Go (gRPC)**: `localhost:50051`
 - **Python (JSON-RPC)**: `localhost:5000/jsonrpc`
-- **Python (REST)**: `localhost:5000/tenants`, `/users`, etc.
-- **Python (Docs)**: `localhost:5000/docs`
+- **Python (OpenRPC Spec)**: `localhost:5000/openrpc.json`
 
 ## License
 

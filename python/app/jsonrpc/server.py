@@ -51,3 +51,35 @@ async def handle_jsonrpc(request: Request) -> Response:
             media_type="application/json",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@router.get("/openrpc.json")
+async def get_openrpc_spec() -> Response:
+    """
+    Get OpenRPC specification for the JSON-RPC API.
+    
+    Returns the complete OpenRPC specification document that describes
+    all available JSON-RPC methods, their parameters, return types, and errors.
+    This spec can be used with OpenRPC tooling for interactive documentation,
+    code generation, and API validation.
+    
+    See: https://spec.open-rpc.org/
+    """
+    try:
+        from app.jsonrpc.openrpc import get_openrpc_spec_json
+        spec_json = get_openrpc_spec_json()
+        return Response(
+            content=spec_json,
+            media_type="application/json",
+        )
+    except Exception as e:
+        logger.exception("Error generating OpenRPC spec")
+        error_response = {
+            "error": "Failed to generate OpenRPC specification",
+            "message": str(e)
+        }
+        return Response(
+            content=json.dumps(error_response),
+            media_type="application/json",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

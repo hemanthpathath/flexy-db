@@ -31,31 +31,31 @@ class NodeTypeRepository:
             schema_value = node_type.schema
 
         query = """
-            INSERT INTO node_types (id, tenant_id, name, description, schema, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
-            RETURNING id, tenant_id, name, description, COALESCE(schema::text, ''), created_at, updated_at
+            INSERT INTO node_types (id, name, description, schema, created_at, updated_at)
+            VALUES ($1, $2, $3, $4::jsonb, $5, $6)
+            RETURNING id, name, description, COALESCE(schema::text, ''), created_at, updated_at
         """
 
         async with self.db.pool.acquire() as conn:
             row = await conn.fetchrow(
                 query,
-                node_type.id, node_type.tenant_id, node_type.name, node_type.description,
+                node_type.id, node_type.name, node_type.description,
                 schema_value,
                 node_type.created_at, node_type.updated_at
             )
 
         return self._row_to_node_type(row)
 
-    async def get_by_id(self, tenant_id: str, id: str) -> NodeType:
-        """Retrieve a node type by ID and tenant ID."""
+    async def get_by_id(self, id: str) -> NodeType:
+        """Retrieve a node type by ID."""
         query = """
-            SELECT id, tenant_id, name, description, COALESCE(schema::text, ''), created_at, updated_at 
+            SELECT id, name, description, COALESCE(schema::text, ''), created_at, updated_at 
             FROM node_types 
-            WHERE id = $1 AND tenant_id = $2
+            WHERE id = $1
         """
 
         async with self.db.pool.acquire() as conn:
-            row = await conn.fetchrow(query, id, tenant_id)
+            row = await conn.fetchrow(query, id)
 
         if not row:
             raise NotFoundError(f"node_type not found: {id}")
@@ -73,15 +73,15 @@ class NodeTypeRepository:
 
         query = """
             UPDATE node_types 
-            SET name = $3, description = $4, schema = $5::jsonb, updated_at = $6
-            WHERE id = $1 AND tenant_id = $2
-            RETURNING id, tenant_id, name, description, COALESCE(schema::text, ''), created_at, updated_at
+            SET name = $2, description = $3, schema = $4::jsonb, updated_at = $5
+            WHERE id = $1
+            RETURNING id, name, description, COALESCE(schema::text, ''), created_at, updated_at
         """
 
         async with self.db.pool.acquire() as conn:
             row = await conn.fetchrow(
                 query,
-                node_type.id, node_type.tenant_id, node_type.name, node_type.description,
+                node_type.id, node_type.name, node_type.description,
                 schema_value,
                 node_type.updated_at
             )
@@ -91,17 +91,17 @@ class NodeTypeRepository:
 
         return self._row_to_node_type(row)
 
-    async def delete(self, tenant_id: str, id: str) -> None:
-        """Delete a node type by ID and tenant ID."""
-        query = "DELETE FROM node_types WHERE id = $1 AND tenant_id = $2"
+    async def delete(self, id: str) -> None:
+        """Delete a node type by ID."""
+        query = "DELETE FROM node_types WHERE id = $1"
 
         async with self.db.pool.acquire() as conn:
-            result = await conn.execute(query, id, tenant_id)
+            result = await conn.execute(query, id)
 
         if result == "DELETE 0":
             raise NotFoundError(f"node_type not found: {id}")
 
-    async def list(self, tenant_id: str, opts: ListOptions) -> Tuple[List[NodeType], ListResult]:
+    async def list(self, opts: ListOptions) -> Tuple[List[NodeType], ListResult]:
         """Retrieve node types with pagination."""
         page_size = max(1, min(opts.page_size or 10, 100))
         offset = 0
@@ -113,18 +113,16 @@ class NodeTypeRepository:
 
         async with self.db.pool.acquire() as conn:
             total_count = await conn.fetchval(
-                "SELECT COUNT(*) FROM node_types WHERE tenant_id = $1",
-                tenant_id
+                "SELECT COUNT(*) FROM node_types"
             )
 
             query = """
-                SELECT id, tenant_id, name, description, COALESCE(schema::text, ''), created_at, updated_at 
+                SELECT id, name, description, COALESCE(schema::text, ''), created_at, updated_at 
                 FROM node_types 
-                WHERE tenant_id = $1
                 ORDER BY created_at DESC 
-                LIMIT $2 OFFSET $3
+                LIMIT $1 OFFSET $2
             """
-            rows = await conn.fetch(query, tenant_id, page_size, offset)
+            rows = await conn.fetch(query, page_size, offset)
 
         node_types = [self._row_to_node_type(row) for row in rows]
 
@@ -139,10 +137,10 @@ class NodeTypeRepository:
         """Convert a database row to a NodeType object."""
         return NodeType(
             id=str(row[0]),
-            tenant_id=str(row[1]),
-            name=row[2],
-            description=row[3] or "",
-            schema=row[4] or "",
-            created_at=row[5],
-            updated_at=row[6],
+            tenant_id="",  # Not stored in tenant database (each tenant has own DB)
+            name=row[1],
+            description=row[2] or "",
+            schema=row[3] or "",
+            created_at=row[4],
+            updated_at=row[5],
         )

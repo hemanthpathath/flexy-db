@@ -30,30 +30,30 @@ class NodeRepository:
             node.data = "{}"
 
         query = """
-            INSERT INTO nodes (id, tenant_id, node_type_id, data, created_at, updated_at)
-            VALUES ($1, $2, $3, $4::jsonb, $5, $6)
-            RETURNING id, tenant_id, node_type_id, data::text, created_at, updated_at
+            INSERT INTO nodes (id, node_type_id, data, created_at, updated_at)
+            VALUES ($1, $2, $3::jsonb, $4, $5)
+            RETURNING id, node_type_id, data::text, created_at, updated_at
         """
 
         async with self.db.pool.acquire() as conn:
             row = await conn.fetchrow(
                 query,
-                node.id, node.tenant_id, node.node_type_id, node.data,
+                node.id, node.node_type_id, node.data,
                 node.created_at, node.updated_at
             )
 
         return self._row_to_node(row)
 
-    async def get_by_id(self, tenant_id: str, id: str) -> Node:
-        """Retrieve a node by ID and tenant ID."""
+    async def get_by_id(self, id: str) -> Node:
+        """Retrieve a node by ID."""
         query = """
-            SELECT id, tenant_id, node_type_id, data::text, created_at, updated_at 
+            SELECT id, node_type_id, data::text, created_at, updated_at 
             FROM nodes 
-            WHERE id = $1 AND tenant_id = $2
+            WHERE id = $1
         """
 
         async with self.db.pool.acquire() as conn:
-            row = await conn.fetchrow(query, id, tenant_id)
+            row = await conn.fetchrow(query, id)
 
         if not row:
             raise NotFoundError(f"node not found: {id}")
@@ -69,15 +69,15 @@ class NodeRepository:
 
         query = """
             UPDATE nodes 
-            SET data = $3::jsonb, updated_at = $4
-            WHERE id = $1 AND tenant_id = $2
-            RETURNING id, tenant_id, node_type_id, data::text, created_at, updated_at
+            SET data = $2::jsonb, updated_at = $3
+            WHERE id = $1
+            RETURNING id, node_type_id, data::text, created_at, updated_at
         """
 
         async with self.db.pool.acquire() as conn:
             row = await conn.fetchrow(
                 query,
-                node.id, node.tenant_id, node.data, node.updated_at
+                node.id, node.data, node.updated_at
             )
 
         if not row:
@@ -85,17 +85,17 @@ class NodeRepository:
 
         return self._row_to_node(row)
 
-    async def delete(self, tenant_id: str, id: str) -> None:
-        """Delete a node by ID and tenant ID."""
-        query = "DELETE FROM nodes WHERE id = $1 AND tenant_id = $2"
+    async def delete(self, id: str) -> None:
+        """Delete a node by ID."""
+        query = "DELETE FROM nodes WHERE id = $1"
 
         async with self.db.pool.acquire() as conn:
-            result = await conn.execute(query, id, tenant_id)
+            result = await conn.execute(query, id)
 
         if result == "DELETE 0":
             raise NotFoundError(f"node not found: {id}")
 
-    async def list(self, tenant_id: str, node_type_id: Optional[str], opts: ListOptions) -> Tuple[List[Node], ListResult]:
+    async def list(self, node_type_id: Optional[str], opts: ListOptions) -> Tuple[List[Node], ListResult]:
         """Retrieve nodes with pagination and optional filtering."""
         page_size = max(1, min(opts.page_size or 10, 100))
         offset = 0
@@ -109,30 +109,28 @@ class NodeRepository:
             # Build count query
             if node_type_id:
                 total_count = await conn.fetchval(
-                    "SELECT COUNT(*) FROM nodes WHERE tenant_id = $1 AND node_type_id = $2",
-                    tenant_id, node_type_id
+                    "SELECT COUNT(*) FROM nodes WHERE node_type_id = $1",
+                    node_type_id
                 )
                 query = """
-                    SELECT id, tenant_id, node_type_id, data::text, created_at, updated_at 
+                    SELECT id, node_type_id, data::text, created_at, updated_at 
                     FROM nodes 
-                    WHERE tenant_id = $1 AND node_type_id = $2
-                    ORDER BY created_at DESC 
-                    LIMIT $3 OFFSET $4
-                """
-                rows = await conn.fetch(query, tenant_id, node_type_id, page_size, offset)
-            else:
-                total_count = await conn.fetchval(
-                    "SELECT COUNT(*) FROM nodes WHERE tenant_id = $1",
-                    tenant_id
-                )
-                query = """
-                    SELECT id, tenant_id, node_type_id, data::text, created_at, updated_at 
-                    FROM nodes 
-                    WHERE tenant_id = $1
+                    WHERE node_type_id = $1
                     ORDER BY created_at DESC 
                     LIMIT $2 OFFSET $3
                 """
-                rows = await conn.fetch(query, tenant_id, page_size, offset)
+                rows = await conn.fetch(query, node_type_id, page_size, offset)
+            else:
+                total_count = await conn.fetchval(
+                    "SELECT COUNT(*) FROM nodes"
+                )
+                query = """
+                    SELECT id, node_type_id, data::text, created_at, updated_at 
+                    FROM nodes 
+                    ORDER BY created_at DESC 
+                    LIMIT $1 OFFSET $2
+                """
+                rows = await conn.fetch(query, page_size, offset)
 
         nodes = [self._row_to_node(row) for row in rows]
 
@@ -147,9 +145,9 @@ class NodeRepository:
         """Convert a database row to a Node object."""
         return Node(
             id=str(row[0]),
-            tenant_id=str(row[1]),
-            node_type_id=str(row[2]),
-            data=row[3] or "{}",
-            created_at=row[4],
-            updated_at=row[5],
+            tenant_id="",  # Not stored in tenant database (each tenant has own DB)
+            node_type_id=str(row[1]),
+            data=row[2] or "{}",
+            created_at=row[3],
+            updated_at=row[4],
         )

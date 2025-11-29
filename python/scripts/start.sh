@@ -37,13 +37,25 @@ pip install -r requirements.txt -q
 
 # Check if PostgreSQL is running (assuming Docker setup)
 if command -v docker &> /dev/null; then
-    if ! docker ps | grep -q "flex-db-postgres"; then
+    if ! docker ps --format '{{.Names}}' | grep -q "^flex-db-python-postgres$"; then
         echo "Starting PostgreSQL container..."
-        cd ..
-        docker-compose up -d postgres
         cd "$PROJECT_DIR"
-        echo "Waiting for PostgreSQL to be ready..."
-        sleep 3
+        if docker-compose up -d postgres 2>/dev/null || docker compose up -d postgres 2>/dev/null; then
+            echo "Waiting for PostgreSQL to be ready..."
+            sleep 5
+            
+            # Wait for PostgreSQL to be healthy
+            max_attempts=30
+            attempt=0
+            while [ $attempt -lt $max_attempts ]; do
+                if docker exec flex-db-python-postgres pg_isready -U postgres &> /dev/null; then
+                    echo "PostgreSQL is ready"
+                    break
+                fi
+                attempt=$((attempt + 1))
+                sleep 1
+            done
+        fi
     fi
 fi
 

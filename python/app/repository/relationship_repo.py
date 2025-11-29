@@ -29,30 +29,30 @@ class RelationshipRepository:
             rel.data = "{}"
 
         query = """
-            INSERT INTO relationships (id, tenant_id, source_node_id, target_node_id, relationship_type, data, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8)
-            RETURNING id, tenant_id, source_node_id, target_node_id, relationship_type, data::text, created_at, updated_at
+            INSERT INTO relationships (id, source_node_id, target_node_id, relationship_type, data, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
+            RETURNING id, source_node_id, target_node_id, relationship_type, data::text, created_at, updated_at
         """
 
         async with self.db.pool.acquire() as conn:
             row = await conn.fetchrow(
                 query,
-                rel.id, rel.tenant_id, rel.source_node_id, rel.target_node_id,
+                rel.id, rel.source_node_id, rel.target_node_id,
                 rel.relationship_type, rel.data, rel.created_at, rel.updated_at
             )
 
         return self._row_to_relationship(row)
 
-    async def get_by_id(self, tenant_id: str, id: str) -> Relationship:
-        """Retrieve a relationship by ID and tenant ID."""
+    async def get_by_id(self, id: str) -> Relationship:
+        """Retrieve a relationship by ID."""
         query = """
-            SELECT id, tenant_id, source_node_id, target_node_id, relationship_type, data::text, created_at, updated_at 
+            SELECT id, source_node_id, target_node_id, relationship_type, data::text, created_at, updated_at 
             FROM relationships 
-            WHERE id = $1 AND tenant_id = $2
+            WHERE id = $1
         """
 
         async with self.db.pool.acquire() as conn:
-            row = await conn.fetchrow(query, id, tenant_id)
+            row = await conn.fetchrow(query, id)
 
         if not row:
             raise NotFoundError(f"relationship not found: {id}")
@@ -68,15 +68,15 @@ class RelationshipRepository:
 
         query = """
             UPDATE relationships 
-            SET relationship_type = $3, data = $4::jsonb, updated_at = $5
-            WHERE id = $1 AND tenant_id = $2
-            RETURNING id, tenant_id, source_node_id, target_node_id, relationship_type, data::text, created_at, updated_at
+            SET relationship_type = $2, data = $3::jsonb, updated_at = $4
+            WHERE id = $1
+            RETURNING id, source_node_id, target_node_id, relationship_type, data::text, created_at, updated_at
         """
 
         async with self.db.pool.acquire() as conn:
             row = await conn.fetchrow(
                 query,
-                rel.id, rel.tenant_id, rel.relationship_type, rel.data, rel.updated_at
+                rel.id, rel.relationship_type, rel.data, rel.updated_at
             )
 
         if not row:
@@ -84,19 +84,18 @@ class RelationshipRepository:
 
         return self._row_to_relationship(row)
 
-    async def delete(self, tenant_id: str, id: str) -> None:
-        """Delete a relationship by ID and tenant ID."""
-        query = "DELETE FROM relationships WHERE id = $1 AND tenant_id = $2"
+    async def delete(self, id: str) -> None:
+        """Delete a relationship by ID."""
+        query = "DELETE FROM relationships WHERE id = $1"
 
         async with self.db.pool.acquire() as conn:
-            result = await conn.execute(query, id, tenant_id)
+            result = await conn.execute(query, id)
 
         if result == "DELETE 0":
             raise NotFoundError(f"relationship not found: {id}")
 
     async def list(
         self,
-        tenant_id: str,
         source_node_id: Optional[str],
         target_node_id: Optional[str],
         rel_type: Optional[str],
@@ -112,14 +111,14 @@ class RelationshipRepository:
                 offset = 0
 
         # Build dynamic query with filters
-        count_query = "SELECT COUNT(*) FROM relationships WHERE tenant_id = $1"
+        count_query = "SELECT COUNT(*) FROM relationships WHERE 1=1"
         list_query = """
-            SELECT id, tenant_id, source_node_id, target_node_id, relationship_type, data::text, created_at, updated_at 
+            SELECT id, source_node_id, target_node_id, relationship_type, data::text, created_at, updated_at 
             FROM relationships 
-            WHERE tenant_id = $1
+            WHERE 1=1
         """
-        args = [tenant_id]
-        arg_idx = 2
+        args = []
+        arg_idx = 1
 
         if source_node_id:
             count_query += f" AND source_node_id = ${arg_idx}"
@@ -159,11 +158,11 @@ class RelationshipRepository:
         """Convert a database row to a Relationship object."""
         return Relationship(
             id=str(row[0]),
-            tenant_id=str(row[1]),
-            source_node_id=str(row[2]),
-            target_node_id=str(row[3]),
-            relationship_type=row[4],
-            data=row[5] or "{}",
-            created_at=row[6],
-            updated_at=row[7],
+            tenant_id="",  # Not stored in tenant database (each tenant has own DB)
+            source_node_id=str(row[1]),
+            target_node_id=str(row[2]),
+            relationship_type=row[3],
+            data=row[4] or "{}",
+            created_at=row[5],
+            updated_at=row[6],
         )

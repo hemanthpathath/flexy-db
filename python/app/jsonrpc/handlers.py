@@ -8,34 +8,23 @@ from jsonrpcserver import method, Result, Success, Error
 from app.service import (
     TenantService,
     UserService,
-    NodeTypeService,
-    NodeService,
-    RelationshipService,
 )
 from app.repository.errors import NotFoundError
+from app.api.dependencies import resolve_tenant_services
 
 # Global service instances (to be set by register_methods)
 _tenant_service: Optional[TenantService] = None
 _user_service: Optional[UserService] = None
-_nodetype_service: Optional[NodeTypeService] = None
-_node_service: Optional[NodeService] = None
-_relationship_service: Optional[RelationshipService] = None
 
 
 def register_methods(
     tenant_svc: TenantService,
     user_svc: UserService,
-    nodetype_svc: NodeTypeService,
-    node_svc: NodeService,
-    relationship_svc: RelationshipService,
 ) -> None:
     """Register service instances for use by JSON-RPC methods."""
-    global _tenant_service, _user_service, _nodetype_service, _node_service, _relationship_service
+    global _tenant_service, _user_service
     _tenant_service = tenant_svc
     _user_service = user_svc
-    _nodetype_service = nodetype_svc
-    _node_service = node_svc
-    _relationship_service = relationship_svc
 
 
 def _handle_error(err: Exception) -> Error:
@@ -220,7 +209,8 @@ async def list_tenant_users(tenant_id: str, pagination: Dict[str, Any] = None) -
 async def create_node_type(tenant_id: str, name: str, description: str = "", schema: str = "") -> Result:
     """Create a new node type."""
     try:
-        node_type = await _nodetype_service.create(tenant_id, name, description, schema)
+        services = await resolve_tenant_services(tenant_id)
+        node_type = await services["node_type"].create(name, description, schema)
         return Success({"node_type": node_type.to_dict()})
     except Exception as e:
         return _handle_error(e)
@@ -230,7 +220,8 @@ async def create_node_type(tenant_id: str, name: str, description: str = "", sch
 async def get_node_type(id: str, tenant_id: str) -> Result:
     """Get a node type by ID."""
     try:
-        node_type = await _nodetype_service.get_by_id(tenant_id, id)
+        services = await resolve_tenant_services(tenant_id)
+        node_type = await services["node_type"].get_by_id(id)
         return Success({"node_type": node_type.to_dict()})
     except Exception as e:
         return _handle_error(e)
@@ -240,7 +231,8 @@ async def get_node_type(id: str, tenant_id: str) -> Result:
 async def update_node_type(id: str, tenant_id: str, name: str = "", description: str = "", schema: str = "") -> Result:
     """Update an existing node type."""
     try:
-        node_type = await _nodetype_service.update(tenant_id, id, name, description, schema)
+        services = await resolve_tenant_services(tenant_id)
+        node_type = await services["node_type"].update(id, name, description, schema)
         return Success({"node_type": node_type.to_dict()})
     except Exception as e:
         return _handle_error(e)
@@ -250,7 +242,8 @@ async def update_node_type(id: str, tenant_id: str, name: str = "", description:
 async def delete_node_type(id: str, tenant_id: str) -> Result:
     """Delete a node type."""
     try:
-        await _nodetype_service.delete(tenant_id, id)
+        services = await resolve_tenant_services(tenant_id)
+        await services["node_type"].delete(id)
         return Success({})
     except Exception as e:
         return _handle_error(e)
@@ -266,7 +259,8 @@ async def list_node_types(tenant_id: str, pagination: Dict[str, Any] = None) -> 
             page_size = pagination.get("page_size", 10)
             page_token = pagination.get("page_token", "")
         
-        node_types, result = await _nodetype_service.list(tenant_id, page_size, page_token)
+        services = await resolve_tenant_services(tenant_id)
+        node_types, result = await services["node_type"].list(page_size, page_token)
         return Success({
             "node_types": [nt.to_dict() for nt in node_types],
             "pagination": result.to_dict(),
@@ -283,7 +277,8 @@ async def list_node_types(tenant_id: str, pagination: Dict[str, Any] = None) -> 
 async def create_node(tenant_id: str, node_type_id: str, data: str = "{}") -> Result:
     """Create a new node."""
     try:
-        node = await _node_service.create(tenant_id, node_type_id, data)
+        services = await resolve_tenant_services(tenant_id)
+        node = await services["node"].create(node_type_id, data)
         return Success({"node": node.to_dict()})
     except Exception as e:
         return _handle_error(e)
@@ -293,7 +288,8 @@ async def create_node(tenant_id: str, node_type_id: str, data: str = "{}") -> Re
 async def get_node(id: str, tenant_id: str) -> Result:
     """Get a node by ID."""
     try:
-        node = await _node_service.get_by_id(tenant_id, id)
+        services = await resolve_tenant_services(tenant_id)
+        node = await services["node"].get_by_id(id)
         return Success({"node": node.to_dict()})
     except Exception as e:
         return _handle_error(e)
@@ -303,7 +299,8 @@ async def get_node(id: str, tenant_id: str) -> Result:
 async def update_node(id: str, tenant_id: str, data: str = "") -> Result:
     """Update an existing node."""
     try:
-        node = await _node_service.update(tenant_id, id, data)
+        services = await resolve_tenant_services(tenant_id)
+        node = await services["node"].update(id, data)
         return Success({"node": node.to_dict()})
     except Exception as e:
         return _handle_error(e)
@@ -313,7 +310,8 @@ async def update_node(id: str, tenant_id: str, data: str = "") -> Result:
 async def delete_node(id: str, tenant_id: str) -> Result:
     """Delete a node."""
     try:
-        await _node_service.delete(tenant_id, id)
+        services = await resolve_tenant_services(tenant_id)
+        await services["node"].delete(id)
         return Success({})
     except Exception as e:
         return _handle_error(e)
@@ -329,7 +327,8 @@ async def list_nodes(tenant_id: str, node_type_id: str = "", pagination: Dict[st
             page_size = pagination.get("page_size", 10)
             page_token = pagination.get("page_token", "")
         
-        nodes, result = await _node_service.list(tenant_id, node_type_id or None, page_size, page_token)
+        services = await resolve_tenant_services(tenant_id)
+        nodes, result = await services["node"].list(node_type_id or None, page_size, page_token)
         return Success({
             "nodes": [n.to_dict() for n in nodes],
             "pagination": result.to_dict(),
@@ -352,7 +351,8 @@ async def create_relationship(
 ) -> Result:
     """Create a new relationship."""
     try:
-        rel = await _relationship_service.create(tenant_id, source_node_id, target_node_id, relationship_type, data)
+        services = await resolve_tenant_services(tenant_id)
+        rel = await services["relationship"].create(source_node_id, target_node_id, relationship_type, data)
         return Success({"relationship": rel.to_dict()})
     except Exception as e:
         return _handle_error(e)
@@ -362,7 +362,8 @@ async def create_relationship(
 async def get_relationship(id: str, tenant_id: str) -> Result:
     """Get a relationship by ID."""
     try:
-        rel = await _relationship_service.get_by_id(tenant_id, id)
+        services = await resolve_tenant_services(tenant_id)
+        rel = await services["relationship"].get_by_id(id)
         return Success({"relationship": rel.to_dict()})
     except Exception as e:
         return _handle_error(e)
@@ -372,7 +373,8 @@ async def get_relationship(id: str, tenant_id: str) -> Result:
 async def update_relationship(id: str, tenant_id: str, relationship_type: str = "", data: str = "") -> Result:
     """Update an existing relationship."""
     try:
-        rel = await _relationship_service.update(tenant_id, id, relationship_type, data)
+        services = await resolve_tenant_services(tenant_id)
+        rel = await services["relationship"].update(id, relationship_type, data)
         return Success({"relationship": rel.to_dict()})
     except Exception as e:
         return _handle_error(e)
@@ -382,7 +384,8 @@ async def update_relationship(id: str, tenant_id: str, relationship_type: str = 
 async def delete_relationship(id: str, tenant_id: str) -> Result:
     """Delete a relationship."""
     try:
-        await _relationship_service.delete(tenant_id, id)
+        services = await resolve_tenant_services(tenant_id)
+        await services["relationship"].delete(id)
         return Success({})
     except Exception as e:
         return _handle_error(e)
@@ -404,8 +407,8 @@ async def list_relationships(
             page_size = pagination.get("page_size", 10)
             page_token = pagination.get("page_token", "")
         
-        rels, result = await _relationship_service.list(
-            tenant_id,
+        services = await resolve_tenant_services(tenant_id)
+        rels, result = await services["relationship"].list(
             source_node_id or None,
             target_node_id or None,
             relationship_type or None,

@@ -13,37 +13,31 @@ class NodeTypeService:
     def __init__(self, repo: NodeTypeRepository):
         self.repo = repo
 
-    async def create(self, tenant_id: str, name: str, description: str, schema: str) -> NodeType:
+    async def create(self, name: str, description: str, schema: str) -> NodeType:
         """Create a new node type."""
-        if not tenant_id:
-            raise ValueError("tenant_id is required")
         if not name:
             raise ValueError("name is required")
 
         node_type = NodeType(
-            tenant_id=tenant_id,
+            tenant_id="",  # Not stored in tenant database
             name=name,
             description=description,
             schema=schema,
         )
         return await self.repo.create(node_type)
 
-    async def get_by_id(self, tenant_id: str, id: str) -> NodeType:
+    async def get_by_id(self, id: str) -> NodeType:
         """Retrieve a node type by ID."""
         if not id:
             raise ValueError("id is required")
-        if not tenant_id:
-            raise ValueError("tenant_id is required")
-        return await self.repo.get_by_id(tenant_id, id)
+        return await self.repo.get_by_id(id)
 
-    async def update(self, tenant_id: str, id: str, name: str, description: str, schema: str) -> NodeType:
+    async def update(self, id: str, name: str, description: str, schema: str) -> NodeType:
         """Update an existing node type."""
         if not id:
             raise ValueError("id is required")
-        if not tenant_id:
-            raise ValueError("tenant_id is required")
 
-        node_type = await self.repo.get_by_id(tenant_id, id)
+        node_type = await self.repo.get_by_id(id)
 
         if name:
             node_type.name = name
@@ -54,18 +48,13 @@ class NodeTypeService:
 
         return await self.repo.update(node_type)
 
-    async def delete(self, tenant_id: str, id: str) -> None:
+    async def delete(self, id: str) -> None:
         """Delete a node type."""
         if not id:
             raise ValueError("id is required")
-        if not tenant_id:
-            raise ValueError("tenant_id is required")
-        await self.repo.delete(tenant_id, id)
+        await self.repo.delete(id)
 
-    async def list(self, tenant_id: str, page_size: int, page_token: str) -> Tuple[List[NodeType], ListResult]:
+    async def list(self, page_size: int, page_token: str) -> Tuple[List[NodeType], ListResult]:
         """Retrieve node types with pagination."""
-        if not tenant_id:
-            raise ValueError("tenant_id is required")
-
         opts = ListOptions(page_size=page_size, page_token=page_token)
-        return await self.repo.list(tenant_id, opts)
+        return await self.repo.list(opts)

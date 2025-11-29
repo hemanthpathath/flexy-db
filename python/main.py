@@ -16,22 +16,22 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from app.config import config_from_env
-from app.db import connect, run_migrations
+from app.db import (
+    connect_control_db,
+    run_control_migrations,
+    ensure_control_database_exists,
+    TenantDatabaseManager,
+)
 from app.repository import (
     TenantRepository,
     UserRepository,
-    NodeTypeRepository,
-    NodeRepository,
-    RelationshipRepository,
 )
 from app.service import (
     TenantService,
     UserService,
-    NodeTypeService,
-    NodeService,
-    RelationshipService,
 )
 from app.jsonrpc import register_methods, jsonrpc_router
+from app.api.dependencies import set_tenant_db_manager
 
 # Configure logging
 logging.basicConfig(
@@ -41,14 +41,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Global database instance
-_db = None
+# Global database instances
+_control_db = None
+_tenant_db_manager = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for FastAPI app."""
-    global _db
+    global _control_db, _tenant_db_manager
     
     # Startup
     logger.info("Starting up...")
@@ -62,41 +63,54 @@ async def lifespan(app: FastAPI):
     # Load configuration from environment variables
     cfg = config_from_env()
 
-    # Connect to database
-    logger.info("Connecting to database...")
+    # Ensure control database exists
+    logger.info("Ensuring control database exists...")
     try:
-        _db = await connect(cfg)
-        logger.info("Connected to database successfully")
+        await ensure_control_database_exists(cfg)
     except Exception as e:
-        logger.error(f"Failed to connect to database: {e}")
+        logger.error(f"Failed to ensure control database exists: {e}")
         sys.exit(1)
 
-    # Run migrations
-    logger.info("Running database migrations...")
+    # Connect to control database
+    logger.info("Connecting to control database...")
     try:
-        await run_migrations(_db)
-        logger.info("Migrations completed successfully")
+        _control_db = await connect_control_db(cfg)
+        logger.info("Connected to control database successfully")
     except Exception as e:
-        logger.error(f"Failed to run migrations: {e}")
-        await _db.close()
+        logger.error(f"Failed to connect to control database: {e}")
         sys.exit(1)
 
-    # Initialize repositories
-    tenant_repo = TenantRepository(_db)
-    user_repo = UserRepository(_db)
-    nodetype_repo = NodeTypeRepository(_db)
-    node_repo = NodeRepository(_db)
-    relationship_repo = RelationshipRepository(_db)
+    # Run control database migrations
+    logger.info("Running control database migrations...")
+    try:
+        await run_control_migrations(_control_db)
+        logger.info("Control database migrations completed successfully")
+    except Exception as e:
+        logger.error(f"Failed to run control database migrations: {e}")
+        await _control_db.close()
+        sys.exit(1)
 
-    # Initialize services
-    tenant_svc = TenantService(tenant_repo)
+    # Initialize tenant database manager
+    logger.info("Initializing tenant database manager...")
+    try:
+        _tenant_db_manager = TenantDatabaseManager(cfg, _control_db)
+        set_tenant_db_manager(_tenant_db_manager)
+        logger.info("Tenant database manager initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize tenant database manager: {e}")
+        await _control_db.close()
+        sys.exit(1)
+
+    # Initialize control database repositories
+    tenant_repo = TenantRepository(_control_db)
+    user_repo = UserRepository(_control_db)
+
+    # Initialize control database services (tenant and user services work with control DB)
+    tenant_svc = TenantService(tenant_repo, _tenant_db_manager)
     user_svc = UserService(user_repo)
-    nodetype_svc = NodeTypeService(nodetype_repo)
-    node_svc = NodeService(node_repo, nodetype_repo)
-    relationship_svc = RelationshipService(relationship_repo, node_repo)
 
-    # Register JSON-RPC methods
-    register_methods(tenant_svc, user_svc, nodetype_svc, node_svc, relationship_svc)
+    # Register JSON-RPC methods (tenant-scoped services are resolved per-request)
+    register_methods(tenant_svc, user_svc)
 
     logger.info("Services initialized successfully")
     
@@ -104,8 +118,10 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down...")
-    if _db:
-        await _db.close()
+    if _tenant_db_manager:
+        await _tenant_db_manager.close_all_pools()
+    if _control_db:
+        await _control_db.close()
     logger.info("Shutdown complete")
 
 

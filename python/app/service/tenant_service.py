@@ -2,26 +2,38 @@
 Tenant service implementation.
 """
 
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 from app.repository import Tenant, TenantRepository, ListOptions, ListResult
+from app.db.tenant_db_manager import TenantDatabaseManager
 
 
 class TenantService:
     """Tenant business logic service."""
 
-    def __init__(self, repo: TenantRepository):
+    def __init__(self, repo: TenantRepository, tenant_db_manager: Optional[TenantDatabaseManager] = None):
         self.repo = repo
+        self.tenant_db_manager = tenant_db_manager
 
     async def create(self, slug: str, name: str) -> Tenant:
-        """Create a new tenant."""
+        """Create a new tenant and its associated tenant database."""
         if not slug:
             raise ValueError("slug is required")
         if not name:
             raise ValueError("name is required")
 
+        # Create tenant record in control database
         tenant = Tenant(slug=slug, name=name)
-        return await self.repo.create(tenant)
+        tenant = await self.repo.create(tenant)
+
+        # Create tenant database and run migrations
+        if self.tenant_db_manager:
+            await self.tenant_db_manager.create_tenant_database(
+                tenant_id=tenant.id,
+                slug=tenant.slug
+            )
+
+        return tenant
 
     async def get_by_id(self, id: str) -> Tenant:
         """Retrieve a tenant by ID."""

@@ -4,6 +4,7 @@ A **Database-as-a-Service (DBaaS)** implemented in Python with JSON-RPC. This is
 
 ## Features
 
+- **Database-per-tenant architecture**: Complete data isolation with separate databases per tenant
 - **Multi-tenant architecture**: All Nodes and Relationships are scoped to a Tenant
 - **Flexible data model**: Generic NodeTypes and Nodes with JSONB data storage
 - **Graph-like relationships**: Connect Nodes with typed Relationships
@@ -19,9 +20,9 @@ A **Database-as-a-Service (DBaaS)** implemented in Python with JSON-RPC. This is
 │                      JSON-RPC API                           │
 │  (TenantService, UserService, NodeTypeService,              │
 │   NodeService, RelationshipService)                         │
-│  • /jsonrpc - JSON-RPC 2.0 endpoint                        │
+│  • /jsonrpc - JSON-RPC 2.0 endpoint                         │
 │  • /openrpc.json - OpenRPC specification                    │
-│  • /health - Health check endpoint                         │
+│  • /health - Health check endpoint                          │
 ├─────────────────────────────────────────────────────────────┤
 │                     Service Layer                           │
 │  (Business logic, validation)                               │
@@ -30,7 +31,7 @@ A **Database-as-a-Service (DBaaS)** implemented in Python with JSON-RPC. This is
 │  (PostgreSQL implementations with asyncpg)                  │
 ├─────────────────────────────────────────────────────────────┤
 │                      PostgreSQL                             │
-│  (tenants, users, tenant_users, node_types, nodes,         │
+│  (tenants, users, tenant_users, node_types, nodes,          │
 │   relationships)                                            │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -69,9 +70,13 @@ python/
 │       ├── server.py       # FastAPI router for JSON-RPC
 │       └── openrpc.py      # OpenRPC specification generator
 ├── docs/
-│   └── JSON_RPC_INTEGRATION.md  # Comprehensive integration guide
+│   ├── JSON_RPC_INTEGRATION.md  # Comprehensive API integration guide
+│   ├── LOCAL_SETUP.md           # Local setup and testing guide
+│   └── DATABASE_ARCHITECTURE.md # Database-per-tenant architecture docs
 ├── scripts/
-│   └── start.sh            # Quick start script
+│   ├── start.sh                 # Start server script
+│   ├── setup_local.sh           # Local environment setup script
+│   └── test_basic_operations.sh # Basic API testing script
 ├── main.py                 # Main entry point
 ├── requirements.txt        # Python dependencies
 ├── .env.example            # Environment variable template
@@ -85,104 +90,52 @@ python/
 
 ## Quick Start
 
+### Option 1: Docker Compose (Recommended)
+
 ```bash
-# 1. Start PostgreSQL (from repository root)
-docker-compose up -d
-
-# 2. Set up environment variables
-cp .env.example .env.local
-
-# 3. Run the server (handles everything automatically)
-./scripts/start.sh
+cd python
+docker compose up
 ```
 
-The server will start on `localhost:5000` (JSON-RPC).
+The server will be available at `http://localhost:5001/jsonrpc`
 
-**📚 For detailed setup instructions, see the sections below.**
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DB_HOST` | `localhost` | PostgreSQL host |
-| `DB_PORT` | `5432` | PostgreSQL port |
-| `DB_USER` | `postgres` | PostgreSQL user |
-| `DB_PASSWORD` | `postgres` | PostgreSQL password |
-| `DB_NAME` | `dbaas` | Database name |
-| `DB_SSL_MODE` | `disable` | SSL mode |
-| `JSONRPC_HOST` | `0.0.0.0` | JSON-RPC server host |
-| `JSONRPC_PORT` | `5000` | JSON-RPC server port |
-
-## Manual Setup
-
-### Step 1: Set Up PostgreSQL
-
-Using Docker (recommended):
+### Option 2: Local Python Setup
 
 ```bash
-# From repository root
-docker-compose up -d
-```
-
-Or using local PostgreSQL:
-
-```bash
-createdb dbaas
-```
-
-### Step 2: Configure Environment Variables
-
-```bash
-cp .env.example .env.local
-```
-
-Edit `.env.local` if needed:
-
-```bash
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_NAME=dbaas
-DB_SSL_MODE=disable
-
-# Server Configuration
-JSONRPC_HOST=0.0.0.0
-JSONRPC_PORT=5000
-
-
-# Development Options
-RELOAD=false
-```
-
-### Step 3: Set Up Virtual Environment
-
-```bash
-python3 -m venv venv
+cd python
+./scripts/setup_local.sh
 source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### Step 4: Run the Server
-
-```bash
 python main.py
 ```
 
-Expected output:
+The server will start on `http://localhost:5000/jsonrpc`
 
-```
-2024-01-01 12:00:00 - INFO - Loading environment from .env.local
-2024-01-01 12:00:00 - INFO - Connecting to database...
-2024-01-01 12:00:00 - INFO - Connected to database successfully
-2024-01-01 12:00:00 - INFO - Running database migrations...
-2024-01-01 12:00:00 - INFO - Migrations completed successfully
-2024-01-01 12:00:00 - INFO - Starting flex-db server on 0.0.0.0:5000...
-2024-01-01 12:00:00 - INFO - JSON-RPC endpoint: http://0.0.0.0:5000/jsonrpc
-2024-01-01 12:00:00 - INFO - OpenRPC spec: http://0.0.0.0:5000/openrpc.json
-2024-01-01 12:00:00 - INFO - Health check: http://0.0.0.0:5000/health
-```
+**📚 For detailed setup and testing instructions, see [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)**
+
+## Environment Variables
+
+| Variable            | Default           | Description                                      |
+|---------------------|-------------------|--------------------------------------------------|
+| `DB_HOST`           | `localhost`       | PostgreSQL host                                  |
+| `DB_PORT`           | `5432`            | PostgreSQL port                                  |
+| `DB_USER`           | `postgres`        | PostgreSQL user                                  |
+| `DB_PASSWORD`       | `postgres`        | PostgreSQL password                              |
+| `DB_CONTROL_NAME`   | `dbaas_control`   | Control database name                            |
+| `DB_TENANT_PREFIX`  | `dbaas_tenant_`   | Tenant database name prefix                      |
+| `DB_NAME`           | `dbaas`           | Legacy database name (kept for compatibility)    |
+| `DB_SSL_MODE`       | `disable`         | SSL mode                                         |
+| `JSONRPC_HOST`      | `0.0.0.0`         | JSON-RPC server host                             |
+| `JSONRPC_PORT`      | `5000`            | JSON-RPC server port                             |
+
+## Documentation
+
+- **[Local Setup Guide](docs/LOCAL_SETUP.md)** - Complete guide for setting up and running locally
+- **[Database Architecture](docs/DATABASE_ARCHITECTURE.md)** - Database-per-tenant architecture documentation
+- **[JSON-RPC Integration Guide](docs/JSON_RPC_INTEGRATION.md)** - Comprehensive API integration guide
+
+## Manual Setup
+
+For detailed manual setup instructions, see [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md).
 
 ## API Usage
 
@@ -373,11 +326,13 @@ For more examples and client implementations, see [docs/JSON_RPC_INTEGRATION.md]
 
 ## Docker Setup
 
-### Using Docker Compose
+For detailed Docker setup instructions, see [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md#using-docker-compose).
+
+### Quick Docker Compose
 
 ```bash
-# From python/ directory
-docker-compose up -d
+cd python
+docker compose up
 ```
 
 This will:

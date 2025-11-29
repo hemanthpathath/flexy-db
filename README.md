@@ -58,18 +58,33 @@ flex-db/
 │   │   └── regenerate-proto.sh # Regenerate protobuf files
 │   ├── go.mod
 │   └── go.sum
-├── python/                     # Python implementation (future)
+├── python/                     # Python implementation with JSON-RPC
+│   ├── app/                    # Application code
+│   │   ├── db/                 # Database connection and migrations
+│   │   ├── repository/         # Data access layer
+│   │   ├── service/            # Business logic layer
+│   │   └── jsonrpc/            # JSON-RPC handlers
+│   ├── scripts/                # Utility scripts
+│   ├── main.py                 # Main entry point
+│   └── requirements.txt        # Python dependencies
 ├── docker-compose.yml
 └── README.md
 ```
 
 ## Prerequisites
 
+### Go Backend
 - Go 1.21+
 - PostgreSQL 14+
 - protoc (Protocol Buffers compiler) - only needed for regenerating proto files
 
+### Python Backend
+- Python 3.9+
+- PostgreSQL 14+
+
 ## Quick Start
+
+### Go Backend (gRPC)
 
 ```bash
 # 1. Start PostgreSQL
@@ -82,14 +97,30 @@ cp .env.example .env.local
 cd go && ./scripts/start.sh
 ```
 
-**📚 For detailed setup instructions, see [go/docs/SETUP.md](go/docs/SETUP.md)**
+### Python Backend (JSON-RPC)
 
-**🧪 For testing with Insomnia, see [go/docs/INSOMNIA_GUIDE.md](go/docs/INSOMNIA_GUIDE.md)**
+```bash
+# 1. Start PostgreSQL
+docker-compose up -d
+
+# 2. Set up environment variables
+cd python && cp .env.example .env.local
+
+# 3. Run the server (handles everything automatically)
+./scripts/start.sh
+```
+
+**📚 For Go setup instructions, see [go/docs/SETUP.md](go/docs/SETUP.md)**
+
+**📚 For Python setup instructions, see [python/README.md](python/README.md)**
+
+**🧪 For testing Go APIs with Insomnia, see [go/docs/INSOMNIA_GUIDE.md](go/docs/INSOMNIA_GUIDE.md)**
 
 ## Documentation
 
-- **[Setup Guide](go/docs/SETUP.md)** - Complete local development setup instructions
-- **[Insomnia Testing Guide](go/docs/INSOMNIA_GUIDE.md)** - Step-by-step guide for testing APIs with Insomnia
+- **[Go Setup Guide](go/docs/SETUP.md)** - Complete Go backend setup instructions
+- **[Python README](python/README.md)** - Complete Python backend setup instructions
+- **[Insomnia Testing Guide](go/docs/INSOMNIA_GUIDE.md)** - Step-by-step guide for testing gRPC APIs with Insomnia
 
 ## API Usage
 

@@ -8,14 +8,9 @@ A Database-as-a-Service (DBaaS) implemented in Python with JSON-RPC.
 import asyncio
 import logging
 import os
-import signal
-import sys
 
 from aiohttp import web
 from dotenv import load_dotenv
-
-# Add the project root to the Python path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.config import config_from_env
 from app.db import connect, run_migrations

@@ -41,6 +41,9 @@ flex-db/
 │   │   └── dbaas_grpc.pb.go    # Generated gRPC code
 │   ├── cmd/dbaas-server/       # Main server entry point
 │   │   └── main.go
+│   ├── docs/                   # Documentation and guides
+│   │   ├── SETUP.md            # Local development setup guide
+│   │   └── INSOMNIA_GUIDE.md   # Insomnia gRPC testing guide
 │   ├── internal/
 │   │   ├── db/                 # Database connection and migrations
 │   │   │   ├── db.go
@@ -56,9 +59,6 @@ flex-db/
 │   ├── go.mod
 │   └── go.sum
 ├── python/                     # Python implementation (future)
-├── docs/                       # Documentation and guides
-│   ├── SETUP.md                # Local development setup guide
-│   └── INSOMNIA_GUIDE.md       # Insomnia gRPC testing guide
 ├── docker-compose.yml
 └── README.md
 ```
@@ -82,20 +82,20 @@ cp .env.example .env.local
 cd go && ./scripts/start.sh
 ```
 
-**📚 For detailed setup instructions, see [docs/SETUP.md](docs/SETUP.md)**
+**📚 For detailed setup instructions, see [go/docs/SETUP.md](go/docs/SETUP.md)**
 
-**🧪 For testing with Insomnia, see [docs/INSOMNIA_GUIDE.md](docs/INSOMNIA_GUIDE.md)**
+**🧪 For testing with Insomnia, see [go/docs/INSOMNIA_GUIDE.md](go/docs/INSOMNIA_GUIDE.md)**
 
 ## Documentation
 
-- **[Setup Guide](docs/SETUP.md)** - Complete local development setup instructions
-- **[Insomnia Testing Guide](docs/INSOMNIA_GUIDE.md)** - Step-by-step guide for testing APIs with Insomnia
+- **[Setup Guide](go/docs/SETUP.md)** - Complete local development setup instructions
+- **[Insomnia Testing Guide](go/docs/INSOMNIA_GUIDE.md)** - Step-by-step guide for testing APIs with Insomnia
 
 ## API Usage
 
 ### Using Insomnia (Recommended)
 
-See the [Insomnia Testing Guide](docs/INSOMNIA_GUIDE.md) for detailed instructions on how to set up and test gRPC requests.
+See the [Insomnia Testing Guide](go/docs/INSOMNIA_GUIDE.md) for detailed instructions on how to set up and test gRPC requests.
 
 ### Using grpcurl
 

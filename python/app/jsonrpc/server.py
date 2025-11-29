@@ -1,28 +1,32 @@
 """
-JSON-RPC server implementation using aiohttp.
+JSON-RPC server implementation using FastAPI.
 """
 
 import json
 import logging
-from aiohttp import web
+from fastapi import APIRouter, Request, Response, status
 from jsonrpcserver import async_dispatch
 
 logger = logging.getLogger(__name__)
 
+router = APIRouter()
 
-async def handle_jsonrpc(request: web.Request) -> web.Response:
+
+@router.post("/jsonrpc")
+async def handle_jsonrpc(request: Request) -> Response:
     """Handle JSON-RPC requests."""
     try:
-        body = await request.text()
-        response = await async_dispatch(body)
+        body = await request.body()
+        body_str = body.decode('utf-8')
+        response = await async_dispatch(body_str)
         
         if response is None:
             # Notification (no response needed)
-            return web.Response(status=204)
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
         
-        return web.Response(
-            text=response,
-            content_type="application/json",
+        return Response(
+            content=response,
+            media_type="application/json",
         )
     except json.JSONDecodeError:
         error_response = {
@@ -30,9 +34,10 @@ async def handle_jsonrpc(request: web.Request) -> web.Response:
             "error": {"code": -32700, "message": "Parse error"},
             "id": None,
         }
-        return web.Response(
-            text=json.dumps(error_response),
-            content_type="application/json",
+        return Response(
+            content=json.dumps(error_response),
+            media_type="application/json",
+            status_code=status.HTTP_400_BAD_REQUEST,
         )
     except Exception as e:
         logger.exception("Error handling JSON-RPC request")
@@ -41,20 +46,8 @@ async def handle_jsonrpc(request: web.Request) -> web.Response:
             "error": {"code": -32603, "message": str(e)},
             "id": None,
         }
-        return web.Response(
-            text=json.dumps(error_response),
-            content_type="application/json",
+        return Response(
+            content=json.dumps(error_response),
+            media_type="application/json",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-
-
-async def health_check(request: web.Request) -> web.Response:
-    """Health check endpoint."""
-    return web.Response(text="OK")
-
-
-def create_app() -> web.Application:
-    """Create and configure the aiohttp application."""
-    app = web.Application()
-    app.router.add_post("/jsonrpc", handle_jsonrpc)
-    app.router.add_get("/health", health_check)
-    return app

@@ -2,15 +2,18 @@
 """
 flex-db Python Backend - Main Entry Point
 
-A Database-as-a-Service (DBaaS) implemented in Python with JSON-RPC.
+A Database-as-a-Service (DBaaS) implemented in Python with JSON-RPC and REST API.
 """
 
-import asyncio
 import logging
 import os
+import sys
 
-from aiohttp import web
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
 from app.config import config_from_env
 from app.db import connect, run_migrations
@@ -28,7 +31,14 @@ from app.service import (
     NodeService,
     RelationshipService,
 )
-from app.jsonrpc import register_methods, create_app
+from app.jsonrpc import register_methods, jsonrpc_router
+from app.api.routers import (
+    tenants,
+    users,
+    node_types,
+    nodes,
+    relationships,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -38,9 +48,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Global database instance
+_db = None
 
-async def main():
-    """Main entry point."""
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for FastAPI app."""
+    global _db
+    
+    # Startup
+    logger.info("Starting up...")
+    
     # Load environment variables from .env.local if it exists
     env_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env.local")
     if os.path.exists(env_file):
@@ -53,7 +72,7 @@ async def main():
     # Connect to database
     logger.info("Connecting to database...")
     try:
-        db = await connect(cfg)
+        _db = await connect(cfg)
         logger.info("Connected to database successfully")
     except Exception as e:
         logger.error(f"Failed to connect to database: {e}")
@@ -62,19 +81,19 @@ async def main():
     # Run migrations
     logger.info("Running database migrations...")
     try:
-        await run_migrations(db)
+        await run_migrations(_db)
         logger.info("Migrations completed successfully")
     except Exception as e:
         logger.error(f"Failed to run migrations: {e}")
-        await db.close()
+        await _db.close()
         sys.exit(1)
 
     # Initialize repositories
-    tenant_repo = TenantRepository(db)
-    user_repo = UserRepository(db)
-    nodetype_repo = NodeTypeRepository(db)
-    node_repo = NodeRepository(db)
-    relationship_repo = RelationshipRepository(db)
+    tenant_repo = TenantRepository(_db)
+    user_repo = UserRepository(_db)
+    nodetype_repo = NodeTypeRepository(_db)
+    node_repo = NodeRepository(_db)
+    relationship_repo = RelationshipRepository(_db)
 
     # Initialize services
     tenant_svc = TenantService(tenant_repo)
@@ -85,42 +104,98 @@ async def main():
 
     # Register JSON-RPC methods
     register_methods(tenant_svc, user_svc, nodetype_svc, node_svc, relationship_svc)
+    
+    # Register services with REST routers
+    tenants.set_tenant_service(tenant_svc)
+    users.set_user_service(user_svc)
+    node_types.set_nodetype_service(nodetype_svc)
+    nodes.set_node_service(node_svc)
+    relationships.set_relationship_service(relationship_svc)
 
-    # Create and configure the web application
-    app = create_app()
+    logger.info("Services initialized successfully")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down...")
+    if _db:
+        await _db.close()
+    logger.info("Shutdown complete")
 
-    # Get server configuration
-    host = os.getenv("JSONRPC_HOST", "0.0.0.0")
-    port = int(os.getenv("JSONRPC_PORT", "5000"))
 
-    # Set up graceful shutdown
-    async def shutdown_handler():
-        logger.info("Shutting down...")
-        await db.close()
+def create_app() -> FastAPI:
+    """Create and configure the FastAPI application."""
+    # Get API metadata from environment
+    api_title = os.getenv("API_TITLE", "flex-db API")
+    api_description = os.getenv("API_DESCRIPTION", "Database-as-a-Service with JSON-RPC and REST API")
+    api_version = os.getenv("API_VERSION", "1.0.0")
+    
+    app = FastAPI(
+        title=api_title,
+        description=api_description,
+        version=api_version,
+        docs_url="/docs",  # Swagger UI
+        redoc_url="/redoc",  # ReDoc
+        openapi_url="/openapi.json",  # OpenAPI schema
+        lifespan=lifespan,
+        openapi_tags=[
+            {"name": "Tenants", "description": "Tenant management operations"},
+            {"name": "Users", "description": "User management operations"},
+            {"name": "Tenant Users", "description": "Tenant-user membership operations"},
+            {"name": "Node Types", "description": "Node type management operations"},
+            {"name": "Nodes", "description": "Node management operations"},
+            {"name": "Relationships", "description": "Relationship management operations"},
+            {"name": "JSON-RPC", "description": "JSON-RPC 2.0 protocol endpoint"},
+            {"name": "Health", "description": "Health check endpoint"},
+        ],
+    )
+    
+    # Add CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
+    # Register JSON-RPC router
+    app.include_router(jsonrpc_router, tags=["JSON-RPC"])
+    
+    # Register REST API routers
+    app.include_router(tenants.router)
+    app.include_router(users.router)
+    app.include_router(users.tenant_users_router)
+    app.include_router(node_types.router)
+    app.include_router(nodes.router)
+    app.include_router(relationships.router)
+    
+    # Health check endpoint
+    @app.get("/health", tags=["Health"])
+    async def health_check():
+        """Health check endpoint."""
+        return {"status": "ok"}
+    
+    return app
 
-    # Start the server
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, host, port)
 
-    try:
-        await site.start()
-        logger.info(f"Starting JSON-RPC server on {host}:{port}...")
-        logger.info(f"JSON-RPC endpoint: http://{host}:{port}/jsonrpc")
-        logger.info(f"Health check endpoint: http://{host}:{port}/health")
-
-        # Keep the server running until interrupted
-        while True:
-            await asyncio.sleep(3600)
-    except asyncio.CancelledError:
-        pass
-    finally:
-        await shutdown_handler()
-        await runner.cleanup()
+# Create the application instance
+app = create_app()
 
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Received shutdown signal")
+    # Get server configuration
+    host = os.getenv("JSONRPC_HOST", "0.0.0.0")
+    port = int(os.getenv("JSONRPC_PORT", "5000"))
+    
+    logger.info(f"Starting flex-db server on {host}:{port}...")
+    logger.info(f"JSON-RPC endpoint: http://{host}:{port}/jsonrpc")
+    logger.info(f"REST API docs: http://{host}:{port}/docs")
+    logger.info(f"Health check: http://{host}:{port}/health")
+    
+    uvicorn.run(
+        "main:app",
+        host=host,
+        port=port,
+        reload=os.getenv("RELOAD", "false").lower() == "true",
+    )

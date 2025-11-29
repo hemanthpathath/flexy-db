@@ -43,8 +43,10 @@ COPY --chown=appuser:appuser . .
 # Switch to non-root user
 USER appuser
 
-# Add local packages to PATH
-ENV PATH=/home/appuser/.local/bin:$PATH
+# Set HOME and add local packages to PATH
+# HOME must be set so Python can find user-site packages in /home/appuser/.local
+ENV HOME=/home/appuser \
+    PATH=/home/appuser/.local/bin:$PATH
 
 # Set Python environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \

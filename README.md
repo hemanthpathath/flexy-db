@@ -20,12 +20,13 @@ This project provides two complete implementations that share the same database 
    - Port: 50051 (default)
    - Database: PostgreSQL with pgx driver
 
-2. **Python Backend** (`/python`): JSON-RPC API with optional REST wrapper
-   - Protocol: JSON-RPC 2.0
-   - Port: 5000 (default)
-   - REST Wrapper: FastAPI-based REST API on port 8000 (default)
+2. **Python Backend** (`/python`): Unified FastAPI service with JSON-RPC and REST
+   - Protocols: JSON-RPC 2.0 and REST API
+   - Port: 5000 (default) - both protocols on the same port
+   - Framework: FastAPI with uvicorn
    - Database: PostgreSQL with asyncpg driver
    - Features: Swagger UI, ReDoc, OpenAPI documentation
+   - Architecture: REST endpoints call services directly (no JSON-RPC overhead)
 
 Both implementations provide full CRUD operations with pagination support and share the same database schema.
 
@@ -51,19 +52,27 @@ Both implementations provide full CRUD operations with pagination support and sh
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Python Backend (JSON-RPC + REST)
+### Python Backend (Unified FastAPI Service)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    REST API (FastAPI)                       │
-│  Optional: Swagger UI at /docs, ReDoc at /redoc            │
-├─────────────────────────────────────────────────────────────┤
-│                      JSON-RPC API                           │
-│  (TenantService, UserService, NodeTypeService,             │
-│   NodeService, RelationshipService)                         │
-├─────────────────────────────────────────────────────────────┤
+│              Unified FastAPI Service (Port 5000)            │
+│  ┌──────────────────────┐  ┌──────────────────────┐         │
+│  │   REST API          │  │   JSON-RPC API       │         │
+│  │   • /tenants       │  │   • /jsonrpc        │         │
+│  │   • /users         │  │                      │         │
+│  │   • /nodes         │  │                      │         │
+│  │   • /relationships │  │                      │         │
+│  │   • /docs (Swagger)│  │                      │         │
+│  │   • /redoc         │  │                      │         │
+│  └──────────┬─────────┘  └──────────┬──────────┘         │
+│             │                       │                      │
+│             └───────────┬───────────┘                      │
+│                         │                                  │
+├─────────────────────────┼──────────────────────────────────┤
 │                     Service Layer                           │
-│  (Business logic, validation)                               │
+│  (TenantService, UserService, NodeTypeService,              │
+│   NodeService, RelationshipService)                        │
 ├─────────────────────────────────────────────────────────────┤
 │                   Repository Layer                          │
 │  (PostgreSQL implementations with asyncpg)                  │
@@ -110,16 +119,15 @@ flex-db/
 │   │   ├── db/                 # Database connection and migrations
 │   │   ├── repository/         # Data access layer
 │   │   ├── service/            # Business logic layer
-│   │   └── jsonrpc/            # JSON-RPC handlers
-│   ├── rest_wrapper/           # REST API facade (FastAPI)
-│   │   ├── main.py             # FastAPI application
-│   │   ├── client.py           # JSON-RPC client
-│   │   ├── models.py           # Pydantic models
-│   │   ├── routers/            # REST endpoint routers
-│   │   └── tests/              # REST wrapper tests
+│   │   ├── jsonrpc/            # JSON-RPC handlers
+│   │   └── api/                # REST API (unified with main service)
+│   │       ├── routers/        # REST endpoint routers
+│   │       ├── models.py       # Pydantic request/response models
+│   │       └── errors.py       # Error handling utilities
 │   ├── scripts/                # Utility scripts
-│   ├── main.py                 # Main entry point (JSON-RPC)
+│   ├── main.py                 # Main entry point (FastAPI - JSON-RPC & REST)
 │   ├── requirements.txt        # Python dependencies
+│   ├── .env.example            # Environment variable template
 │   ├── Dockerfile              # Docker image
 │   └── docker-compose.yml      # Docker Compose config
 ├── docker-compose.yml          # Shared PostgreSQL setup
@@ -136,7 +144,6 @@ flex-db/
 ### Python Backend
 - Python 3.9+
 - PostgreSQL 14+
-- (Optional) For REST wrapper: Additional dependencies in `rest_wrapper/requirements.txt`
 
 ## Quick Start
 
@@ -159,7 +166,7 @@ The server will start on `localhost:50051` (gRPC).
 
 **🧪 For testing Go APIs with Insomnia, see [go/docs/INSOMNIA_GUIDE.md](go/docs/INSOMNIA_GUIDE.md)**
 
-### Python Backend (JSON-RPC)
+### Python Backend (JSON-RPC + REST)
 
 ```bash
 # 1. Start PostgreSQL
@@ -168,34 +175,19 @@ docker-compose up -d
 # 2. Set up environment variables
 cd python && cp .env.example .env.local
 
-# 3. Run the server (handles everything automatically)
+# 3. Run the unified server (handles everything automatically)
 ./scripts/start.sh
+# Or: python main.py
 ```
 
-The server will start on `localhost:5000` (JSON-RPC).
+The unified service will start on `localhost:5000` with both JSON-RPC and REST APIs:
+- **JSON-RPC**: `http://localhost:5000/jsonrpc`
+- **REST API**: `http://localhost:5000/tenants`, `/users`, `/nodes`, etc.
+- **Swagger UI**: `http://localhost:5000/docs`
+- **ReDoc**: `http://localhost:5000/redoc`
+- **Health Check**: `http://localhost:5000/health`
 
 **📚 For detailed Python setup instructions, see [python/README.md](python/README.md)**
-
-### Python REST Wrapper (Optional)
-
-The Python backend includes an optional REST API wrapper:
-
-```bash
-# 1. Start the JSON-RPC backend (see above)
-
-# 2. Install REST wrapper dependencies
-cd python && pip install -r rest_wrapper/requirements.txt
-
-# 3. Run the REST wrapper
-PYTHONPATH=. uvicorn rest_wrapper.main:app --host 0.0.0.0 --port 8000
-```
-
-The REST API will be available at:
-- REST API: `http://localhost:8000`
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-**📚 For REST wrapper details, see [python/rest_wrapper/README.md](python/rest_wrapper/README.md)**
 
 ## Documentation
 
@@ -206,7 +198,6 @@ The REST API will be available at:
 
 ### Python Backend
 - **[Python README](python/README.md)** - Complete Python backend setup instructions
-- **[REST Wrapper README](python/rest_wrapper/README.md)** - REST API facade documentation
 
 ## API Usage
 
@@ -320,11 +311,13 @@ Connect to the server:
 evans --host localhost --port 50051 -r repl
 ```
 
-### Python Backend (JSON-RPC)
+### Python Backend (JSON-RPC + REST)
 
-The Python backend exposes a JSON-RPC 2.0 API at `http://localhost:5000/jsonrpc`.
+The Python backend provides both JSON-RPC and REST APIs on the same port (5000).
 
-#### Using curl
+#### JSON-RPC API
+
+The JSON-RPC 2.0 API is available at `http://localhost:5000/jsonrpc`:
 
 ```bash
 # Create a tenant
@@ -338,24 +331,31 @@ curl -X POST http://localhost:5000/jsonrpc \
   }'
 ```
 
-For more examples and the complete API reference, see [python/README.md](python/README.md).
+#### REST API
 
-### Python REST Wrapper
-
-The REST wrapper provides RESTful endpoints that forward to the JSON-RPC backend:
+The REST API provides RESTful endpoints that call services directly:
 
 ```bash
 # Create a tenant
-curl -X POST http://localhost:8000/tenants \
+curl -X POST http://localhost:5000/tenants \
   -H "Content-Type: application/json" \
   -d '{"slug": "acme-corp", "name": "Acme Corporation"}'
+
+# Get a tenant
+curl http://localhost:5000/tenants/{tenant_id}
+
+# List tenants
+curl "http://localhost:5000/tenants?page_size=10"
 ```
 
-Interactive API documentation is available at:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+#### Interactive API Documentation
 
-For complete REST API documentation, see [python/rest_wrapper/README.md](python/rest_wrapper/README.md).
+Both JSON-RPC and REST are documented in the unified OpenAPI specification:
+- **Swagger UI**: http://localhost:5000/docs
+- **ReDoc**: http://localhost:5000/redoc
+- **OpenAPI Schema**: http://localhost:5000/openapi.json
+
+For more examples and the complete API reference, see [python/README.md](python/README.md).
 
 ## Data Model
 
@@ -437,11 +437,11 @@ cd python && python -m pytest
 #### Development Mode
 
 ```bash
-# JSON-RPC backend with auto-reload
-cd python && python main.py
+# Unified service with auto-reload (both JSON-RPC and REST)
+cd python && RELOAD=true python main.py
 
-# REST wrapper with auto-reload
-cd python && PYTHONPATH=. uvicorn rest_wrapper.main:app --reload --port 8000
+# Or using uvicorn directly
+cd python && uvicorn main:app --reload --host 0.0.0.0 --port 5000
 ```
 
 ### Running Both Implementations
@@ -452,17 +452,18 @@ You can run both Go and Python backends simultaneously as they use the same data
 # Terminal 1: Start PostgreSQL
 docker-compose up -d
 
-# Terminal 2: Start Go backend
+# Terminal 2: Start Go backend (gRPC on port 50051)
 cd go && ./scripts/start.sh
 
-# Terminal 3: Start Python backend
+# Terminal 3: Start Python backend (JSON-RPC + REST on port 5000)
 cd python && ./scripts/start.sh
-
-# Terminal 4: Start Python REST wrapper (optional)
-cd python && PYTHONPATH=. uvicorn rest_wrapper.main:app --host 0.0.0.0 --port 8000
 ```
 
-This allows you to test and compare both implementations side-by-side.
+This allows you to test and compare both implementations side-by-side:
+- **Go (gRPC)**: `localhost:50051`
+- **Python (JSON-RPC)**: `localhost:5000/jsonrpc`
+- **Python (REST)**: `localhost:5000/tenants`, `/users`, etc.
+- **Python (Docs)**: `localhost:5000/docs`
 
 ## License
 

@@ -35,12 +35,11 @@ build
 dist
 *.egg-info
 
-# Documentation
-*.md
-!requirements.txt
+# Documentation (except README for reference)
+README.md
 
-# Scripts (not needed in container)
-scripts
+# Scripts (development utilities not needed in container)
+scripts/
 
 # Misc
 .DS_Store

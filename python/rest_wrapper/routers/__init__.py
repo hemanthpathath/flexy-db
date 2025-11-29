@@ -1,3 +1,0 @@
-"""
-REST API routers module.
-"""

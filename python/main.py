@@ -2,7 +2,7 @@
 """
 flex-db Python Backend - Main Entry Point
 
-A Database-as-a-Service (DBaaS) implemented in Python with JSON-RPC and REST API.
+A Database-as-a-Service (DBaaS) implemented in Python with JSON-RPC API.
 """
 
 import logging
@@ -32,13 +32,6 @@ from app.service import (
     RelationshipService,
 )
 from app.jsonrpc import register_methods, jsonrpc_router
-from app.api.routers import (
-    tenants,
-    users,
-    node_types,
-    nodes,
-    relationships,
-)
 
 # Configure logging
 logging.basicConfig(
@@ -104,13 +97,6 @@ async def lifespan(app: FastAPI):
 
     # Register JSON-RPC methods
     register_methods(tenant_svc, user_svc, nodetype_svc, node_svc, relationship_svc)
-    
-    # Register services with REST routers
-    tenants.set_tenant_service(tenant_svc)
-    users.set_user_service(user_svc)
-    node_types.set_nodetype_service(nodetype_svc)
-    nodes.set_node_service(node_svc)
-    relationships.set_relationship_service(relationship_svc)
 
     logger.info("Services initialized successfully")
     
@@ -125,29 +111,14 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
-    # Get API metadata from environment
-    api_title = os.getenv("API_TITLE", "flex-db API")
-    api_description = os.getenv("API_DESCRIPTION", "Database-as-a-Service with JSON-RPC and REST API")
-    api_version = os.getenv("API_VERSION", "1.0.0")
-    
     app = FastAPI(
-        title=api_title,
-        description=api_description,
-        version=api_version,
-        docs_url="/docs",  # Swagger UI
-        redoc_url="/redoc",  # ReDoc
-        openapi_url="/openapi.json",  # OpenAPI schema
+        title="flex-db API",
+        description="Database-as-a-Service with JSON-RPC 2.0 API",
+        version="1.0.0",
+        docs_url=None,  # Disable Swagger UI (we use OpenRPC instead)
+        redoc_url=None,  # Disable ReDoc (we use OpenRPC instead)
+        openapi_url=None,  # Disable OpenAPI schema (we use OpenRPC instead)
         lifespan=lifespan,
-        openapi_tags=[
-            {"name": "Tenants", "description": "Tenant management operations"},
-            {"name": "Users", "description": "User management operations"},
-            {"name": "Tenant Users", "description": "Tenant-user membership operations"},
-            {"name": "Node Types", "description": "Node type management operations"},
-            {"name": "Nodes", "description": "Node management operations"},
-            {"name": "Relationships", "description": "Relationship management operations"},
-            {"name": "JSON-RPC", "description": "JSON-RPC 2.0 protocol endpoint"},
-            {"name": "Health", "description": "Health check endpoint"},
-        ],
     )
     
     # Add CORS middleware
@@ -162,18 +133,10 @@ def create_app() -> FastAPI:
     )
     
     # Register JSON-RPC router
-    app.include_router(jsonrpc_router, tags=["JSON-RPC"])
-    
-    # Register REST API routers
-    app.include_router(tenants.router)
-    app.include_router(users.router)
-    app.include_router(users.tenant_users_router)
-    app.include_router(node_types.router)
-    app.include_router(nodes.router)
-    app.include_router(relationships.router)
+    app.include_router(jsonrpc_router)
     
     # Health check endpoint
-    @app.get("/health", tags=["Health"])
+    @app.get("/health")
     async def health_check():
         """Health check endpoint."""
         return {"status": "ok"}
@@ -192,7 +155,7 @@ if __name__ == "__main__":
     
     logger.info(f"Starting flex-db server on {host}:{port}...")
     logger.info(f"JSON-RPC endpoint: http://{host}:{port}/jsonrpc")
-    logger.info(f"REST API docs: http://{host}:{port}/docs")
+    logger.info(f"OpenRPC spec: http://{host}:{port}/openrpc.json")
     logger.info(f"Health check: http://{host}:{port}/health")
     
     uvicorn.run(

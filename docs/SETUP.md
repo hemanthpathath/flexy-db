@@ -14,10 +14,10 @@ docker-compose up -d
 cp .env.example .env.local
 
 # 3. Run the server (this script handles everything automatically)
-./scripts/start.sh
+cd go && ./scripts/start.sh
 ```
 
-Then open Insomnia, create a gRPC request, connect to `localhost:50051`, and import `api/proto/dbaas.proto`.
+Then open Insomnia, create a gRPC request, connect to `localhost:50051`, and import `go/api/proto/dbaas.proto`.
 
 ## Prerequisites
 
@@ -110,7 +110,7 @@ GRPC_PORT=50051
 Download Go dependencies:
 
 ```bash
-go mod download
+cd go && go mod download
 ```
 
 **Note:** The `start.sh` script will do this automatically if you use it.
@@ -124,7 +124,7 @@ You have three options to run the server:
 The easiest way - the script handles everything automatically:
 
 ```bash
-./scripts/start.sh
+cd go && ./scripts/start.sh
 ```
 
 **What the script does:**
@@ -139,6 +139,9 @@ The easiest way - the script handles everything automatically:
 If you prefer to run manually:
 
 ```bash
+# Navigate to go directory
+cd go
+
 # Load environment variables from .env.local
 source scripts/load-env.sh
 
@@ -151,6 +154,9 @@ go run ./cmd/dbaas-server
 For production-like builds:
 
 ```bash
+# Navigate to go directory
+cd go
+
 # Load environment variables
 source scripts/load-env.sh
 
@@ -195,7 +201,7 @@ The server has gRPC reflection enabled, which allows Insomnia to automatically d
 ### 5.2 Import Proto File
 
 1. Click **"Select Proto File"** or **"Use Proto File"**
-2. Navigate to the project directory and select: `api/proto/dbaas.proto`
+2. Navigate to the project directory and select: `go/api/proto/dbaas.proto`
 3. Insomnia will parse the proto file and show available services
 
 ### 5.3 Select a Service and Method
@@ -431,28 +437,33 @@ grpcurl -plaintext -d '{"pagination": {"page_size": 10}}' \
 
 ```
 flex-db/
-├── api/proto/              # gRPC protobuf definitions
-│   ├── dbaas.proto         # Proto definition file
-│   ├── dbaas.pb.go         # Generated Go code
-│   └── dbaas_grpc.pb.go    # Generated gRPC code
-├── cmd/dbaas-server/       # Main server entry point
-│   └── main.go
-├── internal/
-│   ├── db/                 # Database connection and migrations
-│   │   ├── db.go
-│   │   └── migrations/     # SQL migration files
-│   ├── repository/         # Data access layer
-│   ├── service/            # Business logic layer
-│   └── grpc/               # gRPC handlers
-├── scripts/
-│   ├── start.sh            # Quick start script
-│   └── load-env.sh         # Environment variable loader
-├── docker-compose.yml      # PostgreSQL Docker setup
-├── .env.example            # Environment variable template
-├── .env.local              # Your local config (gitignored)
-└── docs/                   # Documentation
-    ├── SETUP.md            # This file
-    └── INSOMNIA_GUIDE.md   # Insomnia testing guide
+├── go/                         # Go implementation
+│   ├── api/proto/              # gRPC protobuf definitions
+│   │   ├── dbaas.proto         # Proto definition file
+│   │   ├── dbaas.pb.go         # Generated Go code
+│   │   └── dbaas_grpc.pb.go    # Generated gRPC code
+│   ├── cmd/dbaas-server/       # Main server entry point
+│   │   └── main.go
+│   ├── internal/
+│   │   ├── db/                 # Database connection and migrations
+│   │   │   ├── db.go
+│   │   │   └── migrations/     # SQL migration files
+│   │   ├── repository/         # Data access layer
+│   │   ├── service/            # Business logic layer
+│   │   └── grpc/               # gRPC handlers
+│   ├── integration/            # Integration tests
+│   ├── scripts/
+│   │   ├── start.sh            # Quick start script
+│   │   └── load-env.sh         # Environment variable loader
+│   ├── go.mod
+│   └── go.sum
+├── python/                     # Python implementation (future)
+├── docker-compose.yml          # PostgreSQL Docker setup
+├── .env.example                # Environment variable template
+├── .env.local                  # Your local config (gitignored)
+└── docs/                       # Documentation
+    ├── SETUP.md                # This file
+    └── INSOMNIA_GUIDE.md       # Insomnia testing guide
 ```
 
 ## API Reference

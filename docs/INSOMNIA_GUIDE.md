@@ -16,7 +16,7 @@ Quick reference for testing flex-db APIs with Insomnia.
 
 ### 3. Import Proto File
 - Click **"Select Proto File"** or **"Use Proto File"**
-- Navigate to: `api/proto/dbaas.proto`
+- Navigate to: `go/api/proto/dbaas.proto`
 - Select the file
 
 After importing, you'll see all available services in the dropdown.
@@ -165,7 +165,7 @@ Create relationships between nodes.
 
 1. **Start the server:**
    ```bash
-   ./scripts/start.sh
+   cd go && ./scripts/start.sh
    ```
 
 2. **Create a Tenant** - Get your first tenant ID
@@ -184,15 +184,15 @@ Create relationships between nodes.
 
 ### Connection Issues
 
-- Make sure the server is running (`./scripts/start.sh`)
+- Make sure the server is running (`cd go && ./scripts/start.sh`)
 - Verify the port matches (default is 50051)
 - Check the server logs for errors
 
 ### Proto File Not Loading
 
-- Ensure `api/proto/dbaas.proto` exists
+- Ensure `go/api/proto/dbaas.proto` exists
 - Make sure the proto file is properly formatted
-- Try regenerating: `./scripts/regenerate-proto.sh`
+- Try regenerating: `cd go && ./scripts/regenerate-proto.sh`
 
 ### Methods Not Showing
 

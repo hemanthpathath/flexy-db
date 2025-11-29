@@ -34,26 +34,32 @@ A **Database-as-a-Service (DBaaS)** built with Go, gRPC, and PostgreSQL. This se
 
 ```
 flex-db/
-├── api/proto/              # gRPC protobuf definitions
-│   ├── dbaas.proto
-│   ├── dbaas.pb.go         # Generated Go code
-│   └── dbaas_grpc.pb.go    # Generated gRPC code
-├── cmd/dbaas-server/       # Main server entry point
-│   └── main.go
-├── docs/                   # Documentation and guides
-│   ├── SETUP.md            # Local development setup guide
-│   └── INSOMNIA_GUIDE.md   # Insomnia gRPC testing guide
-├── internal/
-│   ├── db/                 # Database connection and migrations
-│   │   ├── db.go
-│   │   └── migrations/     # SQL migration files
-│   ├── repository/         # Data access layer
-│   ├── service/            # Business logic layer
-│   └── grpc/               # gRPC handlers
-├── scripts/                # Utility scripts
-│   ├── start.sh            # Quick start script
-│   ├── load-env.sh         # Environment variable loader
-│   └── regenerate-proto.sh # Regenerate protobuf files
+├── go/                         # Go implementation
+│   ├── api/proto/              # gRPC protobuf definitions
+│   │   ├── dbaas.proto
+│   │   ├── dbaas.pb.go         # Generated Go code
+│   │   └── dbaas_grpc.pb.go    # Generated gRPC code
+│   ├── cmd/dbaas-server/       # Main server entry point
+│   │   └── main.go
+│   ├── internal/
+│   │   ├── db/                 # Database connection and migrations
+│   │   │   ├── db.go
+│   │   │   └── migrations/     # SQL migration files
+│   │   ├── repository/         # Data access layer
+│   │   ├── service/            # Business logic layer
+│   │   └── grpc/               # gRPC handlers
+│   ├── integration/            # Integration tests
+│   ├── scripts/                # Utility scripts
+│   │   ├── start.sh            # Quick start script
+│   │   ├── load-env.sh         # Environment variable loader
+│   │   └── regenerate-proto.sh # Regenerate protobuf files
+│   ├── go.mod
+│   └── go.sum
+├── python/                     # Python implementation (future)
+├── docs/                       # Documentation and guides
+│   ├── SETUP.md                # Local development setup guide
+│   └── INSOMNIA_GUIDE.md       # Insomnia gRPC testing guide
+├── docker-compose.yml
 └── README.md
 ```
 
@@ -73,7 +79,7 @@ docker-compose up -d
 cp .env.example .env.local
 
 # 3. Run the server (handles everything automatically)
-./scripts/start.sh
+cd go && ./scripts/start.sh
 ```
 
 **📚 For detailed setup instructions, see [docs/SETUP.md](docs/SETUP.md)**
@@ -238,12 +244,12 @@ If you modify the protobuf definitions:
 
 ```bash
 # Use the regenerate script (recommended)
-./scripts/regenerate-proto.sh
+cd go && ./scripts/regenerate-proto.sh
 
 # Or manually
 go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-protoc --go_out=. --go_opt=paths=source_relative \
+cd go && protoc --go_out=. --go_opt=paths=source_relative \
        --go-grpc_out=. --go-grpc_opt=paths=source_relative \
        api/proto/dbaas.proto
 ```
@@ -251,13 +257,13 @@ protoc --go_out=. --go_opt=paths=source_relative \
 ### Build
 
 ```bash
-go build -o dbaas-server ./cmd/dbaas-server
+cd go && go build -o dbaas-server ./cmd/dbaas-server
 ```
 
 ### Run Tests
 
 ```bash
-go test ./...
+cd go && go test ./...
 ```
 
 ## License

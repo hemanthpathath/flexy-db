@@ -5,13 +5,19 @@ on:
     branches:
       - main
     paths:
-      - 'python/**'
+      - 'app/**'
+      - 'main.py'
+      - 'requirements.txt'
+      - 'Dockerfile'
       - '.github/workflows/python-docker-build.yml'
   pull_request:
     branches:
       - main
     paths:
-      - 'python/**'
+      - 'app/**'
+      - 'main.py'
+      - 'requirements.txt'
+      - 'Dockerfile'
       - '.github/workflows/python-docker-build.yml'
 
 env:
@@ -44,8 +50,8 @@ jobs:
       - name: Build Docker image (no push)
         uses: docker/build-push-action@v6
         with:
-          context: ./python
-          file: ./python/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -88,8 +94,8 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: ./python
-          file: ./python/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

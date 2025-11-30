@@ -1,0 +1,46 @@
+# Git
+.git
+.gitignore
+
+# Python bytecode
+__pycache__
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments
+.venv
+venv
+env
+ENV
+
+# IDE and editor files
+.idea
+.vscode
+*.swp
+*.swo
+
+# Local environment files
+.env
+.env.local
+
+# Test and coverage files
+.pytest_cache
+.coverage
+htmlcov
+*.cover
+
+# Build and distribution
+build
+dist
+*.egg-info
+
+# Documentation (except README for reference)
+README.md
+
+# Scripts (development utilities not needed in container)
+scripts/
+
+# Misc
+.DS_Store
+Thumbs.db

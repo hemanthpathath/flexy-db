@@ -1,6 +1,6 @@
 # flex-db Makefile
 #
-# Unified development and testing workflow
+# Development and testing workflow for the Python JSON-RPC backend
 #
 # Usage:
 #   make setup-dev   - Build and start the development environment
@@ -25,9 +25,10 @@ help:
 	@echo "  make status      - Show status of running containers"
 	@echo ""
 	@echo "Development Environment:"
-	@echo "  - PostgreSQL: localhost:5432"
-	@echo "  - Go Backend (gRPC): localhost:50051"
-	@echo "  - Python Backend (JSON-RPC): localhost:5000"
+	@echo "  - PostgreSQL:     localhost:5432"
+	@echo "  - JSON-RPC API:   http://localhost:5000/jsonrpc"
+	@echo "  - OpenRPC Spec:   http://localhost:5000/openrpc.json"
+	@echo "  - Health Check:   http://localhost:5000/health"
 
 # Build all Docker images
 build:
@@ -50,12 +51,10 @@ setup-dev:
 	@echo "=========================================="
 	@echo ""
 	@echo "Services available:"
-	@echo "  - PostgreSQL:          localhost:5432"
-	@echo "  - Go Backend (gRPC):   localhost:50051"
-	@echo "  - Python Backend:      http://localhost:5000"
-	@echo "    - JSON-RPC:          http://localhost:5000/jsonrpc"
-	@echo "    - OpenRPC Spec:      http://localhost:5000/openrpc.json"
-	@echo "    - Health Check:      http://localhost:5000/health"
+	@echo "  - PostgreSQL:      localhost:5432"
+	@echo "  - JSON-RPC API:    http://localhost:5000/jsonrpc"
+	@echo "  - OpenRPC Spec:    http://localhost:5000/openrpc.json"
+	@echo "  - Health Check:    http://localhost:5000/health"
 	@echo ""
 	@echo "To view logs: make logs"
 	@echo "To stop:      make stop"

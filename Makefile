@@ -26,14 +26,16 @@ help:
 	@echo ""
 	@echo "Development Environment:"
 	@echo "  - PostgreSQL:     localhost:5432"
-	@echo "  - JSON-RPC API:   http://localhost:5000/jsonrpc"
-	@echo "  - OpenRPC Spec:   http://localhost:5000/openrpc.json"
-	@echo "  - Health Check:   http://localhost:5000/health"
+	@echo "  - JSON-RPC API:   http://localhost:8080/jsonrpc"
+	@echo "  - OpenRPC Spec:   http://localhost:8080/openrpc.json"
+	@echo "  - Health Check:   http://localhost:8080/health"
 
 # Build all Docker images
 build:
 	@echo "Building Docker images..."
-	docker compose --profile dev build
+	@cp .env.local .env.compose
+	@export $$(cat .env.local | grep -v '^#' | xargs) && docker compose -p flex-db-dev build
+	@rm -f .env.compose
 
 # Setup development environment
 setup-dev:
@@ -41,7 +43,9 @@ setup-dev:
 	@echo "Setting up development environment..."
 	@echo "=========================================="
 	@echo ""
-	docker compose --profile dev up --build -d
+	@cp .env.local .env.compose
+	@export $$(cat .env.local | grep -v '^#' | xargs) && docker compose -p flex-db-dev up --build -d
+	@rm -f .env.compose
 	@echo ""
 	@echo "Waiting for services to be healthy..."
 	@sleep 5
@@ -52,9 +56,9 @@ setup-dev:
 	@echo ""
 	@echo "Services available:"
 	@echo "  - PostgreSQL:      localhost:5432"
-	@echo "  - JSON-RPC API:    http://localhost:5000/jsonrpc"
-	@echo "  - OpenRPC Spec:    http://localhost:5000/openrpc.json"
-	@echo "  - Health Check:    http://localhost:5000/health"
+	@echo "  - JSON-RPC API:    http://localhost:8080/jsonrpc"
+	@echo "  - OpenRPC Spec:    http://localhost:8080/openrpc.json"
+	@echo "  - Health Check:    http://localhost:8080/health"
 	@echo ""
 	@echo "To view logs: make logs"
 	@echo "To stop:      make stop"
@@ -66,11 +70,13 @@ test-all:
 	@echo "=========================================="
 	@echo ""
 	@echo "Starting test environment..."
-	docker compose --profile test up --build --abort-on-container-exit --exit-code-from test-runner
-	@TEST_EXIT_CODE=$$?; \
+	@cp .env.test .env.compose
+	@export $$(cat .env.test | grep -v '^#' | xargs) && docker compose -p flex-db-test up --build --abort-on-container-exit --exit-code-from backend; \
+	TEST_EXIT_CODE=$$?; \
 	echo ""; \
 	echo "Tearing down test environment..."; \
-	docker compose --profile test down -v; \
+	export $$(cat .env.test | grep -v '^#' | xargs) && docker compose -p flex-db-test down -v; \
+	rm -f .env.compose; \
 	echo ""; \
 	if [ $$TEST_EXIT_CODE -eq 0 ]; then \
 		echo "=========================================="; \
@@ -86,25 +92,32 @@ test-all:
 # Stop all running containers
 stop:
 	@echo "Stopping all containers..."
-	docker compose --profile dev down
-	docker compose --profile test down
+	@if [ -f .env.local ]; then cp .env.local .env.compose && export $$(cat .env.local | grep -v '^#' | xargs) && docker compose -p flex-db-dev down && rm -f .env.compose; fi
+	@if [ -f .env.test ]; then cp .env.test .env.compose && export $$(cat .env.test | grep -v '^#' | xargs) && docker compose -p flex-db-test down && rm -f .env.compose; fi
 	@echo "All containers stopped."
 
 # Clean up everything (containers, volumes, images)
 clean:
 	@echo "Cleaning up..."
-	docker compose --profile dev down -v --rmi local
-	docker compose --profile test down -v --rmi local
+	@if [ -f .env.local ]; then cp .env.local .env.compose && export $$(cat .env.local | grep -v '^#' | xargs) && docker compose -p flex-db-dev down -v --rmi local && rm -f .env.compose; fi
+	@if [ -f .env.test ]; then cp .env.test .env.compose && export $$(cat .env.test | grep -v '^#' | xargs) && docker compose -p flex-db-test down -v --rmi local && rm -f .env.compose; fi
 	@echo "Cleanup complete."
 
 # Show logs from running containers
 logs:
-	docker compose --profile dev logs -f
+	@if [ -f .env.compose ]; then \
+		export $$(cat .env.compose | grep -v '^#' | xargs) && docker compose -p flex-db-dev logs -f; \
+	else \
+		cp .env.local .env.compose && export $$(cat .env.local | grep -v '^#' | xargs) && docker compose -p flex-db-dev logs -f && rm -f .env.compose; \
+	fi
 
 # Show status of running containers
 status:
-	@echo "Container status:"
-	@docker compose --profile dev ps
+	@echo "Development container status:"
+	@cp .env.local .env.compose 2>/dev/null || true
+	@export $$(cat .env.local 2>/dev/null | grep -v '^#' | xargs) && docker compose -p flex-db-dev ps 2>/dev/null || echo "  (no dev containers running)"
 	@echo ""
 	@echo "Test container status:"
-	@docker compose --profile test ps
+	@cp .env.test .env.compose 2>/dev/null || true
+	@export $$(cat .env.test 2>/dev/null | grep -v '^#' | xargs) && docker compose -p flex-db-test ps 2>/dev/null || echo "  (no test containers running)"
+	@rm -f .env.compose

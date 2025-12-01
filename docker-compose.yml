@@ -1,148 +1,73 @@
-# flex-db Docker Compose
-#
-# This file supports both development and testing workflows:
-#
-# Development (keeps containers running):
-#   docker compose --profile dev up --build
-#
-# Testing (isolated, tears down after tests):
-#   docker compose --profile test up --build --abort-on-container-exit
-#   docker compose --profile test down -v
-#
-# Use the Makefile for convenience:
-#   make setup-dev    - Start development environment
-#   make test-all     - Run all tests in isolation and tear down
-#
-
 services:
-  # PostgreSQL database - for development
-  postgres:
-    image: postgres:14
-    container_name: flex-db-postgres
+  # PostgreSQL Database Service
+  database:
+    image: postgres:14-alpine
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: dbaas
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 5s
-      retries: 10
-      start_period: 10s
-    restart: unless-stopped
-    profiles:
-      - dev
+      retries: 5
+    networks:
+      - flex-db-network
 
-  # PostgreSQL for testing - uses tmpfs for faster tests, no persistence
-  postgres-test:
-    image: postgres:14
-    container_name: flex-db-postgres-test
+  # Python Backend Service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      database:
+        condition: service_healthy
+    env_file:
+      - .env.compose
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: dbaas_test
+      # Database connection settings
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DB_CONTROL_NAME: ${DB_CONTROL_NAME:-dbaas_control}
+      DB_TENANT_PREFIX: ${DB_TENANT_PREFIX:-dbaas_tenant_}
+      DB_NAME: ${DB_NAME:-dbaas}
+      DB_SSL_MODE: disable
+      # JSON-RPC server settings - read from env_file
+      JSONRPC_HOST: ${JSONRPC_HOST:-0.0.0.0}
+      JSONRPC_PORT: ${JSONRPC_PORT:-8080}
+      # These are loaded from .env.compose via env_file
+      # RELOAD, TEST_MODE, PYTEST_ARGS are set in env files
     ports:
-      - "5433:5432"
-    tmpfs:
-      - /var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 5s
-    profiles:
-      - test
-
-  # Python backend (JSON-RPC) - development
-  flex-db:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: flex-db-python
-    ports:
-      - "5001:5000"
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_CONTROL_NAME: dbaas_control
-      DB_TENANT_PREFIX: dbaas_tenant_
-      DB_NAME: dbaas
-      DB_SSL_MODE: disable
-      JSONRPC_HOST: 0.0.0.0
-      JSONRPC_PORT: 5000
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    profiles:
-      - dev
-
-  # Python backend for testing
-  flex-db-test:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: flex-db-python-test
-    environment:
-      DB_HOST: postgres-test
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_CONTROL_NAME: dbaas_control_test
-      DB_TENANT_PREFIX: dbaas_tenant_test_
-      DB_NAME: dbaas_test
-      DB_SSL_MODE: disable
-      JSONRPC_HOST: 0.0.0.0
-      JSONRPC_PORT: 5000
-    depends_on:
-      postgres-test:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    profiles:
-      - test
-
-  # Test runner - runs Python tests
-  test-runner:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: flex-db-test-runner
-    environment:
-      DB_HOST: postgres-test
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_CONTROL_NAME: dbaas_control_test
-      DB_TENANT_PREFIX: dbaas_tenant_test_
-      DB_NAME: dbaas_test
-      DB_SSL_MODE: disable
-      FLEX_DB_TEST_URL: http://flex-db-test:5000
-    depends_on:
-      postgres-test:
-        condition: service_healthy
-      flex-db-test:
-        condition: service_healthy
-    command: ["python", "-c", "import urllib.request; response = urllib.request.urlopen('http://flex-db-test:5000/health'); print('Health check passed:', response.read().decode())"]
-    profiles:
-      - test
+      - "${JSONRPC_PORT:-8080}:${JSONRPC_PORT:-8080}"
+    volumes:
+      # Mount code for development (hot reload) and tests
+      - ./app:/app/app:ro
+      - ./main.py:/app/main.py:ro
+      - ./tests:/app/tests:ro
+      - ./pytest.ini:/app/pytest.ini:ro
+    command: >
+      sh -c "
+        if [ \"$$TEST_MODE\" = \"true\" ]; then
+          echo 'Running tests...';
+          python -m pytest $$PYTEST_ARGS;
+        else
+          echo 'Starting development server...';
+          python main.py;
+        fi
+      "
+    networks:
+      - flex-db-network
 
 volumes:
   postgres_data:
+    driver: local
+
+networks:
+  flex-db-network:
+    driver: bridge

@@ -8,6 +8,8 @@
 
 # Go test binary
 *.test
+# Exception: .env.test should be committed
+!.env.test
 
 # Go coverage
 *.out
@@ -24,7 +26,9 @@ coverage.html
 
 # Local environment files
 .env
-.env.local
+# Note: .env.local and .env.test are NOT ignored - they should be committed to version control
+!.env.local
+!.env.test
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
